@@ -2,18 +2,6 @@ class Brain {
   constructor() {
     this.layers = [];
     this.layers.push(new Array(21));
-    //this.layers.push(new Array(18));
-    //this.layers.push(new Array(17));
-    //this.layers.push(new Array(16));
-    //this.layers.push(new Array(15));
-    //this.layers.push(new Array(14));
-    //this.layers.push(new Array(13));
-    //this.layers.push(new Array(12));
-    //this.layers.push(new Array(11));
-    //this.layers.push(new Array(10));
-    //this.layers.push(new Array(9));
-    //this.layers.push(new Array(40));
-    //this.layers.push(new Array(40));
     this.layers.push(new Array(13));
     this.layers.push(new Array(13));
     this.layers.push(new Array(8));
@@ -66,9 +54,6 @@ class Brain {
           // input times a weight
           inputValues += this.layers[layerIndex - 1][ci].value * this.layers[layerIndex][ni].connections[ci].weight;
         }
-
-        // memory?
-        //inputValues += Math.tanh((this.layers[layerIndex][ni].value * this.layers[layerIndex][ni].connections[connectionCount - 2].weight) + this.layers[layerIndex][ni].connections[connectionCount - 3].weight);
 
         // add a bias
         inputValues += this.layers[layerIndex][ni].connections[connectionCount - 1].weight;
