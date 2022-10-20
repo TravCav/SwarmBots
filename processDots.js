@@ -186,7 +186,7 @@ function PlacePixel(x, y, color, d) {
 }
 
 
-AddDots(100);
+AddDots(2);
 for (let i = 0; i < 120; i++) {
   times.push(performance.now());
 }
