@@ -45,9 +45,10 @@
         for(let layerIndex=0; layerIndex < cachedBrain.length; layerIndex++){
             for(let neuronIndex=0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++)
             {
-                let groupLabel = "Hidden";
-                if(layerIndex==0){ groupLabel= "Input";}
-                if(layerIndex==3){ groupLabel= "Output";}
+                let groupLabel = "Hidden ";
+                if(layerIndex==0){ groupLabel= "Input ";}
+                if(layerIndex > 0 && layerIndex < 3 ) { groupLabel = "Hidden " + layerIndex + " "; }
+                if(layerIndex==3){ groupLabel= "Output ";}
                 nodes.push({id: layerIndex+"."+neuronIndex, label: groupLabel + "[" + layerIndex+"."+neuronIndex + "]", group: groupLabel, font: { color: "white" } })
             }
             }
