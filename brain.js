@@ -67,7 +67,7 @@ class Brain {
   }
 
   Restore() {
-    var oldBrain = JSON.parse(localStorage.getItem("BrainSave"));
+    var oldBrain = JSON.parse(localStorage.getItem("Brain1"));
     if (oldBrain != null) {
       // does the net have the same amount of layers?
       if (this.layers.length === oldBrain.length) {
@@ -90,6 +90,11 @@ class Brain {
   }
   Save() {
     var dotString = JSON.stringify(this.layers);
-    localStorage.setItem("BrainSave", dotString);
+    localStorage.setItem("Brain1", dotString);
+
+    var networkDiv = document.getElementById("mynetwork");
+    if (networkDiv.style.display === "block") {
+       draw();
+    }
   }
 }
