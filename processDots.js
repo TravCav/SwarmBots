@@ -37,6 +37,14 @@ function AddDots(dotsToAdd) {
   }
 }
 
+function CircleDot(dotIndex, color, size) {
+  const oldDot = population.dots[dotIndex];
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.arc(oldDot.x, oldDot.y, size, 0, 2 * Math.PI);
+  ctx.stroke();
+}
+
 function CopyDot(dotIndex, copyDot) {
   population.dots[dotIndex].brain.Copy(
     copyDot.brain
@@ -168,6 +176,8 @@ function DrawGrid() {
 
   // ctx.fillStyle = "white";
   // ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+  
+  CircleDot(population.data.mostChildrenIndex, "green", 45);
   
   setTimeout(function () {
     DrawGrid();
