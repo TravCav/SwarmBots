@@ -62,7 +62,7 @@
                 for (let connectionIndex=0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length;connectionIndex++)
                 {
                     if(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0){
-                        edges.push({ from: (layerIndex-1)+"."+connectionIndex, to: layerIndex+"."+neuronIndex, value: cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight,  arrows: "to" })
+                        edges.push({ from: (layerIndex-1)+"."+connectionIndex, to: layerIndex+"."+neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight),  arrows: "to" })
                     }
                 }
             }

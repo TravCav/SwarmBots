@@ -41,6 +41,12 @@ class Brain {
     // TODO: all the neurons have references to the same connection.
     // randomly adjust it.
     this.layers[layer][neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
+
+    // chance to reset connection
+    if(Math.random() < .01)
+    {
+      this.layers[layer][neuronIndex].connections[connectionIndex].weight=0
+    }
   }
 
   ProcessLayers() {
