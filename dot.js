@@ -129,73 +129,88 @@ class Dot {
     let outputLayerLen = this.brain.layers[outputLayer].length
     for (let index = 0; index < outputLayerLen; index++) {
       this.brain.layers[0].push({
-        value: this.brain.layers[outputLayer][index].value
+        value: this.brain.layers[outputLayer][index].value,
+        label: "read output " + index
       });
     }
 
     // know thyself
     this.brain.layers[0].push({
-      value: this.age
+      value: this.age,
+      label: "age"
     });
     this.brain.layers[0].push({
-      value: this.energy
+      value: this.energy,
+      label: "energy"
     });
     this.brain.layers[0].push({
-      value: this.vector.x
+      value: this.vector.x,
+      label: "x vector"
     });
     this.brain.layers[0].push({
-      value: this.vector.y
+      value: this.vector.y,
+      label: "y vector"
     });
 
     // closest dot that it can see. if any.
     if (this.GetDistance(this.nearestDot) < this.nearbyDistance) {
       this.brain.layers[0].push({
-        value: this.nearestDot.x - this.x
+        value: this.nearestDot.x - this.x,
+        label: "nearest dot x distance"
       });
       this.brain.layers[0].push({
-        value: this.nearestDot.y - this.y
+        value: this.nearestDot.y - this.y,
+        label: "nearest dot y distance"
       });
       this.brain.layers[0].push({
-        value: this.nearestDot.energy - this.energy
+        value: this.nearestDot.energy - this.energy,
+        label: "nearest dot energy"
+        
       });
 
       this.brain.layers[0].push({
-        value: Math.abs(this.color.r - this.nearestDot.color.r)
+        value: Math.abs(this.color.r - this.nearestDot.color.r),
+        label: "nearest dot r diff"
       });
       this.brain.layers[0].push({
-        value: Math.abs(this.color.g - this.nearestDot.color.g)
+        value: Math.abs(this.color.g - this.nearestDot.color.g),
+        label: "nearest dot g diff"
       });
       this.brain.layers[0].push({
-        value: Math.abs(this.color.b - this.nearestDot.color.b)
+        value: Math.abs(this.color.b - this.nearestDot.color.b),
+        label: "nearest dot b diff"
       });
     } else {
       // can't see anything.
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
+      this.brain.layers[0].push({ value: 0, label: "nearest dot x distance" });
+      this.brain.layers[0].push({ value: 0, label: "nearest dot y distance"});
+      this.brain.layers[0].push({ value: 0, label: "nearest dot energy" });
+      this.brain.layers[0].push({ value: 0, label: "nearest dot r diff" });
+      this.brain.layers[0].push({ value: 0, label: "nearest dot g diff" });
+      this.brain.layers[0].push({ value: 0, label: "nearest dot b diff" });
     }
 
         // closest dot that it can see. if any.
     if (this.nearestFood != null &&  (this.GetDistance(this.nearestFood) < this.nearbyDistance * 2)) {
       this.brain.layers[0].push({
-        value: this.nearestFood.x - this.x
+        value: this.nearestFood.x - this.x,
+        label: "closest food x"
       });
       this.brain.layers[0].push({
-        value: this.nearestFood.y - this.y
+        value: this.nearestFood.y - this.y,
+        label: "closest food y"
       });
       
     } else {
       // can't see anything.
-      this.brain.layers[0].push({ value: 0 });
-      this.brain.layers[0].push({ value: 0 });
+      this.brain.layers[0].push({ value: 0, label: "closest food x" });
+      this.brain.layers[0].push({ value: 0, label: "closest food y" });
     }
 
     // what's around me
     this.brain.layers[0].push({
-      value: this.nearbyDotCount
+      value: this.nearbyDotCount,
+      label: "number of visible dots"
     });
 
   }

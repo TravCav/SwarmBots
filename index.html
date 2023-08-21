@@ -15,103 +15,105 @@
             image-rendering: optimize-contrast;
             -ms-interpolation-mode: nearest-neighbor;
         }
+
         #mynetwork {
-          position:absolute;
-          top:0;
-          left:0;
-          width: 600px;
-          height: 600px;
-          border: 1px solid #000000;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 600px;
+            border: 1px solid #000000;
         }
-        
     </style>
-    <script
-    type="text/javascript"
-    src="vis-network.min.js"
-  ></script>
+    <script type="text/javascript" src="vis-network.min.js"></script>
 
-  <script type="text/javascript">
-    var nodes = null;
-    var edges = null;
-    var network = null;
+    <script type="text/javascript">
+        var nodes = null;
+        var edges = null;
+        var network = null;
 
-    function draw() {
-      var cachedBrain = JSON.parse(localStorage.getItem("Brain1"));
-      if (cachedBrain != null){
-        // create people.
-        // value corresponds with the age of the person
-        nodes = [];
+        function draw() {
+            var cachedBrain = JSON.parse(localStorage.getItem("Brain1"));
+            if (cachedBrain != null) {
+                // create people.
+                // value corresponds with the age of the person
+                nodes = [];
 
-        for(let layerIndex=0; layerIndex < cachedBrain.length; layerIndex++){
-            for(let neuronIndex=0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++)
-            {
-                let groupLabel = "Hidden ";
-                if(layerIndex==0){ groupLabel= "Input ";}
-                if(layerIndex > 0 && layerIndex < 3 ) { groupLabel = "Hidden " + layerIndex + " "; }
-                if(layerIndex==3){ groupLabel= "Output ";}
-                nodes.push({id: layerIndex+"."+neuronIndex, label: groupLabel + "[" + layerIndex+"."+neuronIndex + "]", group: groupLabel, font: { color: "white" } })
-            }
-            }
-        // create connections between people
-        // value corresponds with the amount of contact between two people
-        edges = [];
+                for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
+                    for (let neuronIndex = 0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
+                        let groupLabel = "";
+                        if (layerIndex == 0) { groupLabel = "Input "; }
+                        if (layerIndex > 0 && layerIndex < 3) { groupLabel = "Hidden " + layerIndex + " "; }
+                        if (layerIndex == 3) { groupLabel = "Output "; }
+                        let neuronLabel = "";
 
-        for(let layerIndex=1; layerIndex < cachedBrain.length; layerIndex++){
-            for(let neuronIndex=0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++)
-            {
-                for (let connectionIndex=0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length;connectionIndex++)
-                {
-                    if(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0){
-                        edges.push({ from: (layerIndex-1)+"."+connectionIndex, to: layerIndex+"."+neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight),  arrows: "to" })
+                        if (layerIndex == 0 || layerIndex == 3) {
+                            neuronLabel = cachedBrain[layerIndex][neuronIndex].label;
+                        }
+
+                        neuronLabel += " (" + groupLabel + ") [" + layerIndex + "." + neuronIndex + "]"
+
+                        nodes.push({ id: layerIndex + "." + neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
                     }
                 }
-            }
-            }
+                // create connections between people
+                // value corresponds with the amount of contact between two people
+                edges = [];
 
-        // Instantiate our network object.
-        var container = document.getElementById("mynetwork");
-        var data = {
-            nodes: nodes,
-            edges: edges,
-        };
-        var options = {
-                nodes: {
-                    shape: "dot",
-                    size: 6
-                },
-                edges: {
-                    smooth: false
-                },
-                physics: {
-                    forceAtlas2Based: {
-                        theta: 0.5,
-                        gravitationalConstant: -150,
-                        centralGravity: 0.03,
-                        springConstant: 0.04,
-                        springLength: 100,
-                        damping: 5,
-                        avoidOverlap: 0
-                    },
-                    maxVelocity: 1046,
-                    solver: "forceAtlas2Based",
-                    timestep: 0.25,
-                    stabilization: { iterations: 0 }
+                for (let layerIndex = 1; layerIndex < cachedBrain.length; layerIndex++) {
+                    for (let neuronIndex = 0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
+                        for (let connectionIndex = 0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length; connectionIndex++) {
+                            if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0) {
+                                edges.push({ from: (layerIndex - 1) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight), arrows: "to" })
+                            }
+                        }
+                    }
                 }
-            };
-        network = new vis.Network(container, data, options);
+
+                // Instantiate our network object.
+                var container = document.getElementById("mynetwork");
+                var data = {
+                    nodes: nodes,
+                    edges: edges,
+                };
+                var options = {
+                    nodes: {
+                        shape: "dot",
+                        size: 6
+                    },
+                    edges: {
+                        smooth: false
+                    },
+                    physics: {
+                        forceAtlas2Based: {
+                            theta: 0.5,
+                            gravitationalConstant: -150,
+                            centralGravity: 0.03,
+                            springConstant: 0.04,
+                            springLength: 100,
+                            damping: 5,
+                            avoidOverlap: 0
+                        },
+                        maxVelocity: 1046,
+                        solver: "forceAtlas2Based",
+                        timestep: 0.25,
+                        stabilization: { iterations: 0 }
+                    }
+                };
+                network = new vis.Network(container, data, options);
+            }
         }
-    }
 
-    function toggleVis(){
-      var networkDiv = document.getElementById("mynetwork");
-      if (networkDiv.style.display === "none") {
-          networkDiv.style.display = "block";
-      } else {
-          networkDiv.style.display = "none";
-      }
-    }
+        function toggleVis() {
+            var networkDiv = document.getElementById("mynetwork");
+            if (networkDiv.style.display === "none") {
+                networkDiv.style.display = "block";
+            } else {
+                networkDiv.style.display = "none";
+            }
+        }
 
-  </script>
+    </script>
     <title>Swarm Bots</title>
 </head>
 

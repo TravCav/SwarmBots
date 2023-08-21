@@ -12,6 +12,15 @@ class Brain {
         this.layers[layerIndex][ni] = new neuron(this.layers[layerIndex - 1].length);
       }
     }
+
+    this.layers[3][0].label = 'up left';
+    this.layers[3][1].label = 'up';
+    this.layers[3][2].label = 'up right';
+    this.layers[3][3].label = 'left';
+    this.layers[3][4].label = 'right';
+    this.layers[3][5].label = 'down left';
+    this.layers[3][6].label = 'down';
+    this.layers[3][7].label = 'down right';
   }
 
   Copy(otherBrain) {
