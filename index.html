@@ -35,8 +35,6 @@
         function draw() {
             var cachedBrain = JSON.parse(localStorage.getItem("Brain1"));
             if (cachedBrain != null) {
-                // create people.
-                // value corresponds with the age of the person
                 nodes = [];
 
                 for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
@@ -56,8 +54,7 @@
                         nodes.push({ id: layerIndex + "." + neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
                     }
                 }
-                // create connections between people
-                // value corresponds with the amount of contact between two people
+                
                 edges = [];
 
                 for (let layerIndex = 1; layerIndex < cachedBrain.length; layerIndex++) {
