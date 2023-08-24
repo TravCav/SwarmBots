@@ -32,7 +32,7 @@ function AddDots(dotsToAdd) {
   for (let i = 0; i < dotsToAdd; i++) {
     population.dots.push(new Dot());
 
-    population.dots[i].brain.Restore();
+    ////population.dots[i].brain.Restore();
     population.dots[i].brain.Mutate();
   }
 }

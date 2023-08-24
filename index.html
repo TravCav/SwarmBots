@@ -33,39 +33,42 @@
         var network = null;
 
         function draw() {
-            var cachedBrain = JSON.parse(localStorage.getItem("Brain1"));
+            var cachedBrain = JSON.parse(localStorage.getItem("Layer1"));
             if (cachedBrain != null) {
                 nodes = [];
 
-                for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
-                    for (let neuronIndex = 0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
-                        let groupLabel = "";
-                        if (layerIndex == 0) { groupLabel = "Input "; }
-                        if (layerIndex > 0 && layerIndex < 3) { groupLabel = "Hidden " + layerIndex + " "; }
-                        if (layerIndex == 3) { groupLabel = "Output "; }
-                        let neuronLabel = "";
+                //for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
+                let layerIndex = 0;
+                let brainLen = cachedBrain[layerIndex].length;
+                for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
+                    let groupLabel = "";
+                    if (neuronIndex < 13) { groupLabel = "Input "; }
+                    if (neuronIndex > 13 && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
+                    if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
+                    let neuronLabel = "";
 
-                        if (layerIndex == 0 || layerIndex == 3) {
-                            neuronLabel = cachedBrain[layerIndex][neuronIndex].label;
-                        }
+                    // if (layerIndex == 0 || layerIndex == 3) {
+                    neuronLabel = cachedBrain[0][neuronIndex].label;
+                    // }
 
-                        neuronLabel += " (" + groupLabel + ") [" + layerIndex + "." + neuronIndex + "]"
+                    neuronLabel += " (" + groupLabel + ") [" + layerIndex + "." + neuronIndex + "]"
 
-                        nodes.push({ id: layerIndex + "." + neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
-                    }
+                    nodes.push({ id: layerIndex + "." + neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
                 }
-                
+                //}
+
                 edges = [];
 
-                for (let layerIndex = 1; layerIndex < cachedBrain.length; layerIndex++) {
-                    for (let neuronIndex = 0; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
-                        for (let connectionIndex = 0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length; connectionIndex++) {
-                            if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0) {
-                                edges.push({ from: (layerIndex - 1) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight), arrows: "to" })
-                            }
+                //for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
+                //let layerIndex = 0;
+                for (let neuronIndex = 14; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
+                    for (let connectionIndex = 0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length; connectionIndex++) {
+                        if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0) {
+                            edges.push({ from: (layerIndex) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight), arrows: "to" })
                         }
                     }
                 }
+                //}
 
                 // Instantiate our network object.
                 var container = document.getElementById("mynetwork");
@@ -98,6 +101,23 @@
                     }
                 };
                 network = new vis.Network(container, data, options);
+
+                // network.on("click", function (e) {
+                //     //Zoom only on single node clicks, zoom out otherwise
+                //     if (e.nodes.length !== 1) {
+                //         network.fit();
+                //         return;
+                //     }
+                //     var nodeId = e.nodes[0];
+                //     //Find out what group the node belongs to
+                //     var group = getGroup(nodeId);
+                //     //TODO: How do you want to handle ungrouped nodes?
+                //     if (group === undefined) return;
+                //     var groupNodes = getGroupNodes(group);
+                //     network.fit({
+                //         nodes: groupNodes
+                //     });
+                // });
             }
         }
 
@@ -116,7 +136,7 @@
 
 <body onload="draw()">
     <canvas id="gridCanvas" width="1000" height="1000" onclick="toggleVis()"></canvas>
-    <div id="mynetwork" style="display:block"></div>
+    <div id="mynetwork" style="display:none"></div>
     <script src="neuron.js"></script>
     <script src="brain.js"></script>
     <script src="dot.js"></script>
