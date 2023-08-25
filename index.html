@@ -43,7 +43,7 @@
                 for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
                     let groupLabel = "";
                     if (neuronIndex < 13) { groupLabel = "Input "; }
-                    if (neuronIndex > 13 && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
+                    if (neuronIndex > 12 && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
                     if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
                     let neuronLabel = "";
 
@@ -125,6 +125,7 @@
             var networkDiv = document.getElementById("mynetwork");
             if (networkDiv.style.display === "none") {
                 networkDiv.style.display = "block";
+                draw();
             } else {
                 networkDiv.style.display = "none";
             }

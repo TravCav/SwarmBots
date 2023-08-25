@@ -105,8 +105,19 @@ class Dot {
     let lastLayer = this.brain.layers[lastLayerIndex];
     let brainLen = this.brain.layers[0].length-1;
     let vectorModifier = 0.1;
-    this.vector.x += ((lastLayer[brainLen-5].value + lastLayer[brainLen-6].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-1].value + lastLayer[brainLen-2].value)) / 3;
-    this.vector.y += ((lastLayer[brainLen-2].value + lastLayer[brainLen-4].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-3].value + lastLayer[brainLen-5].value)) / 3;
+    // this.vector.x += ((lastLayer[brainLen-5].value + lastLayer[brainLen-6].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-1].value + lastLayer[brainLen-2].value)) / 3;
+    // this.vector.y += ((lastLayer[brainLen-2].value + lastLayer[brainLen-4].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-3].value + lastLayer[brainLen-5].value)) / 3;
+ 
+    // 0,1,2
+    // 3,-,4
+    // 5,6,7
+    
+    // this.vector.x += ((lastLayer[5].value + lastLayer[6].value + lastLayer[7].value) - (lastLayer[0].value + lastLayer[1].value + lastLayer[2].value)) / 3;
+    // this.vector.y += ((lastLayer[2].value + lastLayer[4].value + lastLayer[7].value) - (lastLayer[0].value + lastLayer[3].value + lastLayer[5].value)) / 3;
+
+    this.vector.x += ((lastLayer[brainLen-4].value + lastLayer[brainLen-1].value + lastLayer[brainLen].value) - (lastLayer[brainLen-7].value + lastLayer[brainLen-6].value + lastLayer[brainLen-5].value)) / 3;
+    this.vector.y += ((lastLayer[brainLen-5].value + lastLayer[brainLen-3].value + lastLayer[brainLen].value) - (lastLayer[brainLen-7].value + lastLayer[brainLen-4].value + lastLayer[brainLen-2].value)) / 3; 
+  
     this.x += (this.vector.x * vectorModifier);
     this.y += (this.vector.y * vectorModifier);
 

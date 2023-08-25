@@ -1,7 +1,7 @@
 class Brain {
   constructor() {
     this.layers = [];
-    this.layers.push(new Array(55));
+    this.layers.push(new Array(35));
     // this.layers.push(new Array(26));
     // this.layers.push(new Array(8));
 
@@ -44,49 +44,44 @@ class Brain {
 
   Mutate() {
     // pick a random layer
-    const layer = 0;
-    let input = 14;
-    let output = 8;
-    let range = input + output;
-
+ 
     // pick a random neuron
-    let neuronIndex = Math.floor(Math.random() * (this.layers[layer].length -(input))) + input;
+    let neuronIndex = Math.floor(Math.random() * (this.layers[0].length - (13))) + 13;
 
     // pick a random connection
-    let connectionIndex = Math.floor(Math.random() * (this.layers[layer][neuronIndex].connections.length));
+    let connectionIndex = Math.floor(Math.random() * (this.layers[0][neuronIndex].connections.length));
 
     // TODO: all the neurons have references to the same connection.
     // randomly adjust it.
-    this.layers[layer][neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
+    this.layers[0][neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
 
     // chance to reset connection
-    if(Math.random() < .5 || neuronIndex == connectionIndex)
+    if(Math.random() < .1 || neuronIndex == connectionIndex)
     {
-      this.layers[layer][neuronIndex].connections[connectionIndex].weight=0
+      this.layers[0][neuronIndex].connections[connectionIndex].weight=0
     }
   }
 
   ProcessLayers() {
     //this.GetInputs();
     //for (let layerIndex = 1; layerIndex < this.layers.length; layerIndex++) {
-      let layerIndex = 0;
-      for (let ni = 14; ni < this.layers[layerIndex].length; ni++) {
+      for (let ni = 13; ni < this.layers[0].length; ni++) {
 
         let inputValues = 0;
-        let connectionCount = this.layers[layerIndex][ni].connections.length;
+        let connectionCount = this.layers[0][ni].connections.length;
         for (let ci = 0; ci < connectionCount - 1; ci++) {
-          //console.log(layerIndex,ci,ni);
+          //console.log(0,ci,ni);
           // input times a weight
-          inputValues += this.layers[layerIndex][ni].value * this.layers[layerIndex][ni].connections[ci].weight;
+          inputValues += this.layers[0][ci].value * this.layers[0][ni].connections[ci].weight;
         }
 
         // add a bias
-        inputValues += this.layers[layerIndex][ni].connections[connectionCount - 1].weight;
+        inputValues += this.layers[0][ni].connections[connectionCount - 1].weight;
 
         // activate
-        //// this.layers[layerIndex][ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
-        this.layers[layerIndex][ni].value = Math.tanh(inputValues);
-        // this.layers[layerIndex][ni].value = Math.max(0,inputValues); // ReLU
+        //// this.layers[0][ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
+        this.layers[0][ni].value = Math.tanh(inputValues);
+        // this.layers[0][ni].value = Math.max(0,inputValues); // ReLU
       }
     //}
   }
