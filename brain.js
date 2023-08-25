@@ -56,9 +56,9 @@ class Brain {
     this.layers[0][neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
 
     // chance to reset connection
-    if(Math.random() < .1 || neuronIndex == connectionIndex)
+    if(Math.random() < .5)
     {
-      this.layers[0][neuronIndex].connections[connectionIndex].weight=0
+      this.layers[0][neuronIndex].connections[connectionIndex].weight=0;
     }
   }
 
