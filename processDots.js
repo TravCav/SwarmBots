@@ -32,7 +32,7 @@ function AddDots(dotsToAdd) {
   for (let i = 0; i < dotsToAdd; i++) {
     population.dots.push(new Dot());
 
-    ////population.dots[i].brain.Restore();
+    population.dots[i].brain.Restore();
     population.dots[i].brain.Mutate();
   }
 }
@@ -116,7 +116,7 @@ function DoTheThings() {
     }
   }
 
-  if (population.dots.length < upperLimit && fps > 40) {
+  if ( fps > 50) {
     AddDots(1);
   }
 }
@@ -196,7 +196,7 @@ function PlacePixel(x, y, color, d) {
 }
 
 
-AddDots(10);
+AddDots(25);
 for (let i = 0; i < 120; i++) {
   times.push(performance.now());
 }
