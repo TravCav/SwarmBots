@@ -101,22 +101,20 @@ class Dot {
 
   DoMovement(cWidth, cHeight) {
     this.ThinkAboutStuff(cWidth, cHeight);
-    let lastLayerIndex = this.brain.layers.length - 1;
-    let lastLayer = this.brain.layers[lastLayerIndex];
-    let brainLen = this.brain.layers[0].length-1;
+    let brainLen = this.brain.neurons.length-1;
     let vectorModifier = 0.1;
-    // this.vector.x += ((lastLayer[brainLen-5].value + lastLayer[brainLen-6].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-1].value + lastLayer[brainLen-2].value)) / 3;
-    // this.vector.y += ((lastLayer[brainLen-2].value + lastLayer[brainLen-4].value + lastLayer[brainLen-7].value) - (lastLayer[brainLen-0].value + lastLayer[brainLen-3].value + lastLayer[brainLen-5].value)) / 3;
+    // this.vector.x += ((this.brain.neurons[brainLen-5].value + this.brain.neurons[brainLen-6].value + this.brain.neurons[brainLen-7].value) - (this.brain.neurons[brainLen-0].value + this.brain.neurons[brainLen-1].value + this.brain.neurons[brainLen-2].value)) / 3;
+    // this.vector.y += ((this.brain.neurons[brainLen-2].value + this.brain.neurons[brainLen-4].value + this.brain.neurons[brainLen-7].value) - (this.brain.neurons[brainLen-0].value + this.brain.neurons[brainLen-3].value + this.brain.neurons[brainLen-5].value)) / 3;
  
     // 0,1,2
     // 3,-,4
     // 5,6,7
-    
-    // this.vector.x += ((lastLayer[5].value + lastLayer[6].value + lastLayer[7].value) - (lastLayer[0].value + lastLayer[1].value + lastLayer[2].value)) / 3;
-    // this.vector.y += ((lastLayer[2].value + lastLayer[4].value + lastLayer[7].value) - (lastLayer[0].value + lastLayer[3].value + lastLayer[5].value)) / 3;
 
-    this.vector.x += ((lastLayer[brainLen-4].value + lastLayer[brainLen-1].value + lastLayer[brainLen].value) - (lastLayer[brainLen-7].value + lastLayer[brainLen-6].value + lastLayer[brainLen-5].value)) / 3;
-    this.vector.y += ((lastLayer[brainLen-5].value + lastLayer[brainLen-3].value + lastLayer[brainLen].value) - (lastLayer[brainLen-7].value + lastLayer[brainLen-4].value + lastLayer[brainLen-2].value)) / 3; 
+    // this.vector.x += ((this.brain.neurons[5].value + this.brain.neurons[6].value + this.brain.neurons[7].value) - (this.brain.neurons[0].value + this.brain.neurons[1].value + this.brain.neurons[2].value)) / 3;
+    // this.vector.y += ((this.brain.neurons[2].value + this.brain.neurons[4].value + this.brain.neurons[7].value) - (this.brain.neurons[0].value + this.brain.neurons[3].value + this.brain.neurons[5].value)) / 3;
+
+    this.vector.x += ((this.brain.neurons[brainLen-4].value + this.brain.neurons[brainLen-1].value + this.brain.neurons[brainLen].value) - (this.brain.neurons[brainLen-7].value + this.brain.neurons[brainLen-6].value + this.brain.neurons[brainLen-5].value)) / 3;
+    this.vector.y += ((this.brain.neurons[brainLen-5].value + this.brain.neurons[brainLen-3].value + this.brain.neurons[brainLen].value) - (this.brain.neurons[brainLen-7].value + this.brain.neurons[brainLen-4].value + this.brain.neurons[brainLen-2].value)) / 3; 
   
     this.x += (this.vector.x * vectorModifier);
     this.y += (this.vector.y * vectorModifier);
@@ -135,100 +133,100 @@ class Dot {
 
   GetInputs(cWidth, cHeight) {
     
-    // previous outputs
-    // let outputLayer = this.brain.layers.length - 1;
-    // let outputLayerLen = this.brain.layers[outputLayer].length
-    // for (let index = 0; index < outputLayerLen; index++) {
-    //   this.brain.layers[0].push({
-    //     value: this.brain.layers[outputLayer][index].value,
-    //     label: "read output " + index
-    //   });
-    // }
-
     // know thyself
-    this.brain.layers[0][0] = {
+    this.brain.neurons[0] = {
       value: this.age,
-      label: "age"
+      label: "age",
+      connections: []
     };
 
-    this.brain.layers[0][1] = {
+    this.brain.neurons[1] = {
       value: this.energy,
-      label: "energy"
+      label: "energy",
+      connections: []
     };
-    this.brain.layers[0][2] = {
+    this.brain.neurons[2] = {
       value: this.vector.x,
-      label: "x vector"
+      label: "x vector",
+      connections: []
     };
-    this.brain.layers[0][3] = {
+    this.brain.neurons[3] = {
       value: this.vector.y,
-      label: "y vector"
+      label: "y vector",
+      connections: []
     };
 
     // closest dot that it can see. if any.
     if (this.GetDistance(this.nearestDot) < this.nearbyDistance) {
-      this.brain.layers[0][4] = {
+      this.brain.neurons[4] = {
         value: this.nearestDot.x - this.x,
-        label: "nearest dot x distance"
+        label: "nearest dot x distance",
+        connections: []
       };
-      this.brain.layers[0][5] = {
+      this.brain.neurons[5] = {
         value: this.nearestDot.y - this.y,
-        label: "nearest dot y distance"
+        label: "nearest dot y distance",
+        connections: []
       };
-      this.brain.layers[0][6] = {
+      this.brain.neurons[6] = {
         value: this.nearestDot.energy - this.energy,
-        label: "nearest dot energy"
+        label: "nearest dot energy",
+        connections: []
       };
 
-      this.brain.layers[0][7] = {
+      this.brain.neurons[7] = {
         value: Math.abs(this.color.r - this.nearestDot.color.r),
-        label: "nearest dot r diff"
+        label: "nearest dot r diff",
+        connections: []
       };
-      this.brain.layers[0][8] = {
+      this.brain.neurons[8] = {
         value: Math.abs(this.color.g - this.nearestDot.color.g),
-        label: "nearest dot g diff"
+        label: "nearest dot g diff",
+        connections: []
       };
-      this.brain.layers[0][9] = {
+      this.brain.neurons[9] = {
         value: Math.abs(this.color.b - this.nearestDot.color.b),
-        label: "nearest dot b diff"
+        label: "nearest dot b diff",
+        connections: []
       };
     } else {
       // can't see anything.
-      this.brain.layers[0][4] = { value: 0, label: "nearest dot x distance" };
-      this.brain.layers[0][5] = { value: 0, label: "nearest dot y distance"};
-      this.brain.layers[0][6] = { value: 0, label: "nearest dot energy" };
-      this.brain.layers[0][7] = { value: 0, label: "nearest dot r diff" };
-      this.brain.layers[0][8] = { value: 0, label: "nearest dot g diff" };
-      this.brain.layers[0][9] = { value: 0, label: "nearest dot b diff" };
+      this.brain.neurons[4] = { value: 0, label: "nearest dot x distance", connections: [] };
+      this.brain.neurons[5] = { value: 0, label: "nearest dot y distance", connections: []};
+      this.brain.neurons[6] = { value: 0, label: "nearest dot energy", connections: [] };
+      this.brain.neurons[7] = { value: 0, label: "nearest dot r diff", connections: [] };
+      this.brain.neurons[8] = { value: 0, label: "nearest dot g diff", connections: [] };
+      this.brain.neurons[9] = { value: 0, label: "nearest dot b diff", connections: [] };
     }
 
         // closest dot that it can see. if any.
     if (this.nearestFood != null &&  (this.GetDistance(this.nearestFood) < this.nearbyDistance * 2)) {
-      this.brain.layers[0][10] = {
+      this.brain.neurons[10] = {
         value: this.nearestFood.x - this.x,
-        label: "closest food x"
+        label: "closest food x", connections: []
       };
-      this.brain.layers[0][11] = {
+      this.brain.neurons[11] = {
         value: this.nearestFood.y - this.y,
-        label: "closest food y"
+        label: "closest food y", connections: []
       };
       
     } else {
       // can't see anything.
-      this.brain.layers[0][10] = { value: 0, label: "closest food x" };
-      this.brain.layers[0][11] = { value: 0, label: "closest food y" };
+      this.brain.neurons[10] = { value: 0, label: "closest food x", connections: [] };
+      this.brain.neurons[11] = { value: 0, label: "closest food y", connections: [] };
     }
 
     // what's around me
-    this.brain.layers[0][12] = {
+    this.brain.neurons[12] = {
       value: this.nearbyDotCount,
-      label: "number of visible dots"
+      label: "number of visible dots", connections: []
     };
 
   }
 
   ThinkAboutStuff(cWidth, cHeight) {
     this.GetInputs(cWidth, cHeight);
-    this.brain.ProcessLayers();
+    this.brain.Processneurons();
   }
 
   WallDeath() {

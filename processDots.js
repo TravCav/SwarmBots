@@ -174,8 +174,8 @@ function DrawGrid() {
   times.push(now);
   fps = times.length;
 
-  // ctx.fillStyle = "white";
-  // ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+  ctx.fillStyle = "white";
+  ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
   
   CircleDot(population.data.mostChildrenIndex, "green", 45);
   

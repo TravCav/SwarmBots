@@ -1,115 +1,102 @@
 class Brain {
   constructor() {
-    this.layers = [];
-    this.layers.push(new Array(35));
-    // this.layers.push(new Array(26));
-    // this.layers.push(new Array(8));
+    this.neurons = new Array(35);
+    // this.neurons.push(new Array(26));
+    // this.neurons.push(new Array(8));
 
     //13 inputs
     //26 hidden
     //8 output
 
-    // fill layers
-    for (let layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
-      for (let ni = 13; ni < this.layers[layerIndex].length; ni++) {
-        this.layers[layerIndex][ni] = new neuron(this.layers[layerIndex].length);
-      }
+    // fill neurons
+    for (let ni = 0; ni < this.neurons.length; ni++) {
+      this.neurons[ni] = new neuron(this.neurons.length);
     }
 
-    let brainLen = this.layers[0].length-1;
-    this.layers[0][brainLen-0].label = 'up left';
-    this.layers[0][brainLen-1].label = 'up';
-    this.layers[0][brainLen-2].label = 'up right';
-    this.layers[0][brainLen-3].label = 'left';
-    this.layers[0][brainLen-4].label = 'right';
-    this.layers[0][brainLen-5].label = 'down left';
-    this.layers[0][brainLen-6].label = 'down';
-    this.layers[0][brainLen-7].label = 'down right';
+    let brainLen = this.neurons.length-1;
+    this.neurons[brainLen-0].label = 'up left';
+    this.neurons[brainLen-1].label = 'up';
+    this.neurons[brainLen-2].label = 'up right';
+    this.neurons[brainLen-3].label = 'left';
+    this.neurons[brainLen-4].label = 'right';
+    this.neurons[brainLen-5].label = 'down left';
+    this.neurons[brainLen-6].label = 'down';
+    this.neurons[brainLen-7].label = 'down right';
   }
 
   Copy(otherBrain) {
-    // loop through layers
-    // for (let layerIndex = 1; layerIndex < this.layers.length; layerIndex++) {
-      let layerIndex = 0;
       // loop though neurons
-      for (let ni = 14; ni < this.layers[layerIndex].length; ni++) {
+      for (let ni = 0; ni < this.neurons.length; ni++) {
         // loop though connections
-        for (let nc = 0; nc < this.layers[layerIndex][ni].connections.length; nc++) {
+        for (let nc = 0; nc < this.neurons[ni].connections.length; nc++) {
           // copy that floppy
-          this.layers[layerIndex][ni].connections[nc].weight = otherBrain.layers[layerIndex][ni].connections[nc].weight;
+          this.neurons[ni].connections[nc].weight = otherBrain.neurons[ni].connections[nc].weight;
         }
       }
-    //}
   }
 
-  Mutate() {
-    // pick a random layer
- 
+  Mutate() { 
     // pick a random neuron
-    let neuronIndex = Math.floor(Math.random() * (this.layers[0].length - (13))) + 13;
+    let neuronIndex = Math.floor(Math.random() * (this.neurons.length - (13))) + 13;
 
     // pick a random connection
-    let connectionIndex = Math.floor(Math.random() * (this.layers[0][neuronIndex].connections.length));
+    let connectionIndex = Math.floor(Math.random() * (this.neurons[neuronIndex].connections.length));
 
     // TODO: all the neurons have references to the same connection.
     // randomly adjust it.
-    this.layers[0][neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
+    this.neurons[neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
 
     // chance to reset connection
     if(Math.random() < .5)
     {
-      this.layers[0][neuronIndex].connections[connectionIndex].weight=0;
+      this.neurons[neuronIndex].connections[connectionIndex].weight=0;
     }
   }
 
-  ProcessLayers() {
-    //this.GetInputs();
-    //for (let layerIndex = 1; layerIndex < this.layers.length; layerIndex++) {
-      for (let ni = 13; ni < this.layers[0].length; ni++) {
-
+  Processneurons() {
+      for (let ni = 13; ni < this.neurons.length; ni++) {
         let inputValues = 0;
-        let connectionCount = this.layers[0][ni].connections.length;
+        let connectionCount = this.neurons[ni].connections.length;
         for (let ci = 0; ci < connectionCount - 1; ci++) {
           //console.log(0,ci,ni);
           // input times a weight
-          inputValues += this.layers[0][ci].value * this.layers[0][ni].connections[ci].weight;
+          inputValues += this.neurons[ci].value * this.neurons[ni].connections[ci].weight;
         }
 
         // add a bias
-        inputValues += this.layers[0][ni].connections[connectionCount - 1].weight;
+        inputValues += this.neurons[ni].connections[connectionCount - 1].weight;
 
         // activate
-        //// this.layers[0][ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
-        this.layers[0][ni].value = Math.tanh(inputValues);
-        // this.layers[0][ni].value = Math.max(0,inputValues); // ReLU
+        //// this.neurons[ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
+        this.neurons[ni].value = Math.tanh(inputValues);
+        // this.neurons[ni].value = Math.max(0,inputValues); // ReLU
       }
-    //}
   }
 
   Restore() {
     var oldBrain = JSON.parse(localStorage.getItem("Layer1"));
     if (oldBrain != null) {
-      // does the net have the same amount of layers?
-      if (this.layers.length === oldBrain.length) {
-        for (let li = 1; li < this.layers.length; li++) {
+      // does the net have the same amount of neurons?
+      if (this.neurons.length === oldBrain.length) {
 
           // does the layer have the same amount of neurons?
-          if (this.layers[li].length === oldBrain[li].length) {
-            for (let ni = 0; ni < this.layers[li].length; ni++) {
+          if (this.neurons.length === oldBrain.length) {
+            for (let ni = 0; ni < this.neurons.length; ni++) {
 
+              
               // does the neuron have the same amount of connections?
-              if (this.layers[li][ni].connections.length === oldBrain[li][ni].connections.length) {
+              if (this.neurons[ni].connections.length === oldBrain[ni].connections.length) {
                 // copy that floppy.
-                this.layers[li][ni].connections = oldBrain[li][ni].connections;
+                this.neurons[ni].connections = oldBrain[ni].connections;
               }
             }
           }
-        }
+        
       }
     }
   }
   Save() {
-    var dotString = JSON.stringify(this.layers);
+    var dotString = JSON.stringify(this.neurons);
     localStorage.setItem("Layer1", dotString);
 
     var networkDiv = document.getElementById("mynetwork");

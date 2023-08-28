@@ -37,9 +37,7 @@
             if (cachedBrain != null) {
                 nodes = [];
 
-                //for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
-                let layerIndex = 0;
-                let brainLen = cachedBrain[layerIndex].length;
+                let brainLen = cachedBrain.length;
                 for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
                     let groupLabel = "";
                     if (neuronIndex < 13) { groupLabel = "Input "; }
@@ -47,28 +45,22 @@
                     if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
                     let neuronLabel = "";
 
-                    // if (layerIndex == 0 || layerIndex == 3) {
-                    neuronLabel = cachedBrain[0][neuronIndex].label;
-                    // }
+                    neuronLabel = cachedBrain[neuronIndex].label;
+                 
 
-                    neuronLabel += " (" + groupLabel + ") [" + layerIndex + "." + neuronIndex + "]"
+                    neuronLabel += " (" + groupLabel + ") [" + neuronIndex + "]"
 
-                    nodes.push({ id: layerIndex + "." + neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
+                    nodes.push({ id: neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
                 }
-                //}
-
                 edges = [];
 
-                //for (let layerIndex = 0; layerIndex < cachedBrain.length; layerIndex++) {
-                //let layerIndex = 0;
-                for (let neuronIndex = 14; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
-                    for (let connectionIndex = 0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length; connectionIndex++) {
-                        if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0) {
-                            edges.push({ from: (layerIndex) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight), arrows: "to" })
+                for (let neuronIndex = 14; neuronIndex < cachedBrain.length; neuronIndex++) {
+                    for (let connectionIndex = 0; connectionIndex < cachedBrain[neuronIndex].connections.length; connectionIndex++) {
+                        if (cachedBrain[neuronIndex].connections[connectionIndex].weight > 0) {
+                            edges.push({ from: connectionIndex, to: neuronIndex, value: Math.abs(cachedBrain[neuronIndex].connections[connectionIndex].weight), arrows: "to" })
                         }
                     }
                 }
-                //}
 
                 // Instantiate our network object.
                 var container = document.getElementById("mynetwork");
