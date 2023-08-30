@@ -174,8 +174,11 @@ function DrawGrid() {
   times.push(now);
   fps = times.length;
 
-  ctx.fillStyle = "white";
-  ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+  var networkDiv = document.getElementById("mynetwork");
+  if (networkDiv.style.display === "block") {
+    ctx.fillStyle = "white";
+    ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+  }
   
   CircleDot(population.data.mostChildrenIndex, "green", 45);
   
