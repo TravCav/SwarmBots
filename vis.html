@@ -25,7 +25,7 @@
     var network = null;
 
     function draw() {
-      var cachedBrain = JSON.parse(localStorage.getItem("Layer1"));
+      var cachedBrain = JSON.parse(localStorage.getItem("reconnect"));
       if (cachedBrain != null) {
         nodes = [];
 
@@ -55,8 +55,8 @@
 
         for (let neuronIndex = 14; neuronIndex < cachedBrain[layerIndex].length; neuronIndex++) {
           for (let connectionIndex = 0; connectionIndex < cachedBrain[layerIndex][neuronIndex].connections.length; connectionIndex++) {
-            if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight > 0) {
-              edges.push({ from: (layerIndex) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex].weight), arrows: "to" })
+            if (cachedBrain[layerIndex][neuronIndex].connections[connectionIndex][1] > 0) {
+              edges.push({ from: (layerIndex) + "." + connectionIndex, to: layerIndex + "." + neuronIndex, value: Math.abs(cachedBrain[layerIndex][neuronIndex].connections[connectionIndex][1]), arrows: "to" })
             }
           }
         }

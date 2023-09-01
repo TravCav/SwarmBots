@@ -92,7 +92,7 @@ function DoTheThings() {
 
   }
 
-
+  let yeetAndDelete = [];
   for (
     let dotIndex = 0; dotIndex < population.dots.length; dotIndex++
   ) {
@@ -111,6 +111,7 @@ function DoTheThings() {
         let copyIndex = Math.floor(Math.random() * population.dots.length);
         copyDot = population.dots[copyIndex];
         CopyDot(dotIndex, copyDot);
+        yeetAndDelete.push(dotIndex);
       }
 
     }
@@ -119,6 +120,10 @@ function DoTheThings() {
   if ( fps > 50) {
     AddDots(1);
   }
+  if ( fps < 20 && population.dots > 100 ) {
+    population.dots.splice(yeetAndDelete[0],1);
+  }
+
 }
 
 function DrawGrid() {

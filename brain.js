@@ -30,7 +30,7 @@ class Brain {
         // loop though connections
         for (let nc = 0; nc < this.neurons[ni].connections.length; nc++) {
           // copy that floppy
-          this.neurons[ni].connections[nc].weight = otherBrain.neurons[ni].connections[nc].weight;
+          this.neurons[ni].connections[nc][1] = otherBrain.neurons[ni].connections[nc][1];
         }
       }
   }
@@ -44,12 +44,12 @@ class Brain {
 
     // TODO: all the neurons have references to the same connection.
     // randomly adjust it.
-    this.neurons[neuronIndex].connections[connectionIndex].weight += Math.random() * 2 - 1;
+    this.neurons[neuronIndex].connections[connectionIndex][1] += Math.random() * 2 - 1;
 
     // chance to reset connection
     if(Math.random() < .5)
     {
-      this.neurons[neuronIndex].connections[connectionIndex].weight=0;
+      this.neurons[neuronIndex].connections[connectionIndex][1]=0;
     }
   }
 
@@ -60,11 +60,11 @@ class Brain {
         for (let ci = 0; ci < connectionCount - 1; ci++) {
           //console.log(0,ci,ni);
           // input times a weight
-          inputValues += this.neurons[ci].value * this.neurons[ni].connections[ci].weight;
+          inputValues += this.neurons[ci].value * this.neurons[ni].connections[ci][1];
         }
 
         // add a bias
-        inputValues += this.neurons[ni].connections[connectionCount - 1].weight;
+        inputValues += this.neurons[ni].connections[connectionCount - 1][1];
 
         // activate
         //// this.neurons[ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
@@ -74,7 +74,7 @@ class Brain {
   }
 
   Restore() {
-    var oldBrain = JSON.parse(localStorage.getItem("Layer1"));
+    var oldBrain = JSON.parse(localStorage.getItem("reconnect"));
     if (oldBrain != null) {
       // does the net have the same amount of neurons?
       if (this.neurons.length === oldBrain.length) {
@@ -97,7 +97,7 @@ class Brain {
   }
   Save() {
     var dotString = JSON.stringify(this.neurons);
-    localStorage.setItem("Layer1", dotString);
+    localStorage.setItem("reconnect", dotString);
 
     var networkDiv = document.getElementById("mynetwork");
     if (networkDiv.style.display === "block") {
