@@ -48,10 +48,12 @@ class Dot {
         }
         
         // i can eat it
-        if (distance < smallestfooddistance && this.energy > pop.dots[closeIndex].energy) {
+        if (this.energy > pop.dots[closeIndex].energy) {
           this.nearbyFoodCOunt++;
-          smallestfooddistance = distance;
-          this.nearestFood = pop.dots[closeIndex];
+          if (distance < smallestfooddistance) {
+            smallestfooddistance = distance;
+            this.nearestFood = pop.dots[closeIndex];
+          }
 
           if ( this.nearestFood != null && pop.dots[closeIndex].energy > this.nearestFood.energy) {
             this.mostEnergeticFood = pop.dots[closeIndex];
