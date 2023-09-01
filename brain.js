@@ -1,6 +1,6 @@
 class Brain {
   constructor() {
-    this.neurons = new Array(16 + 8);
+    this.neurons = new Array(16 + 20 + 8);
     // this.neurons.push(new Array(26));
     // this.neurons.push(new Array(8));
 
