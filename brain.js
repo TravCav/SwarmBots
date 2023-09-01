@@ -1,10 +1,10 @@
 class Brain {
   constructor() {
-    this.neurons = new Array(35);
+    this.neurons = new Array(16 + 8);
     // this.neurons.push(new Array(26));
     // this.neurons.push(new Array(8));
 
-    //13 inputs
+    //16 inputs
     //26 hidden
     //8 output
 
@@ -37,7 +37,7 @@ class Brain {
 
   Mutate() { 
     // pick a random neuron
-    let neuronIndex = Math.floor(Math.random() * (this.neurons.length - (13))) + 13;
+    let neuronIndex = Math.floor(Math.random() * (this.neurons.length - (16))) + 16;
 
     // pick a random connection
     let connectionIndex = Math.floor(Math.random() * (this.neurons[neuronIndex].connections.length));
@@ -54,7 +54,7 @@ class Brain {
   }
 
   Processneurons() {
-      for (let ni = 13; ni < this.neurons.length; ni++) {
+      for (let ni = 16; ni < this.neurons.length; ni++) {
         let inputValues = 0;
         let connectionCount = this.neurons[ni].connections.length;
         for (let ci = 0; ci < connectionCount - 1; ci++) {

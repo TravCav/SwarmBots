@@ -14,6 +14,7 @@ class Dot {
     this.tickRate = 0.02;
     this.nearestDot = null;
     this.nearestFood = null;
+    this.mostEnergeticFood = null;
     this.x = Math.random() * ctx.canvas.width;
     this.y = Math.random() * ctx.canvas.height;
     this.brain = new Brain();
@@ -23,12 +24,14 @@ class Dot {
     this.generation = 0;
     this.nearbyDistance = 50;
     this.nearbyDotCount = 0;
+    this.nearbyFoodCOunt = 0;
   }
 
   CheckDots(pop) {
     let smallestdistance = 100000000;
     let smallestfooddistance = 100000000;
     this.nearbyDotCount = 0;
+    this.nearbyFoodCOunt = 0;
     for (
       let closeIndex = 0; closeIndex < pop.dots.length; closeIndex++
     ) {
@@ -44,9 +47,15 @@ class Dot {
           this.nearestDot = pop.dots[closeIndex];
         }
         
+        // i can eat it
         if (distance < smallestfooddistance && this.energy > pop.dots[closeIndex].energy) {
+          this.nearbyFoodCOunt++;
           smallestfooddistance = distance;
           this.nearestFood = pop.dots[closeIndex];
+
+          if ( this.nearestFood != null && pop.dots[closeIndex].energy > this.nearestFood.energy) {
+            this.mostEnergeticFood = pop.dots[closeIndex];
+          }
         }
       }
     }
@@ -199,8 +208,8 @@ class Dot {
       this.brain.neurons[9] = { value: 0, label: "nearest dot b diff", connections: [] };
     }
 
-        // closest dot that it can see. if any.
-    if (this.nearestFood != null &&  (this.GetDistance(this.nearestFood) < this.nearbyDistance * 2)) {
+        // closest dot that it can eat. if any.
+    if (this.nearestFood != null && (this.GetDistance(this.nearestFood) < this.nearbyDistance * 2)) {
       this.brain.neurons[10] = {
         value: this.nearestFood.x - this.x,
         label: "closest food x", connections: []
@@ -216,11 +225,35 @@ class Dot {
       this.brain.neurons[11] = { value: 0, label: "closest food y", connections: [] };
     }
 
+       // closest most energetic dot that it can eat. if any.
+       if (this.nearbyFoodCOunt != null && (this.GetDistance(this.nearbyFoodCOunt) < this.nearbyDistance * 2)) {
+        this.brain.neurons[12] = {
+          value: this.nearnearbyFoodCOuntestFood.x - this.x,
+          label: "closest food x", connections: []
+        };
+        this.brain.neurons[13] = {
+          value: this.nearbyFoodCOunt.y - this.y,
+          label: "closest food y", connections: []
+        };
+        
+      } else {
+        // can't see anything.
+        this.brain.neurons[12] = { value: 0, label: "closest food x", connections: [] };
+        this.brain.neurons[13] = { value: 0, label: "closest food y", connections: [] };
+      }
+
     // what's around me
-    this.brain.neurons[12] = {
+    this.brain.neurons[14] = {
       value: this.nearbyDotCount,
       label: "number of visible dots", connections: []
     };
+
+    this.brain.neurons[15] = {
+      value: this.nearbyFoodCOunt,
+      label: "number of nearby food", connections: []
+    };
+
+    
 
   }
 

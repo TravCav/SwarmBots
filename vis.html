@@ -34,8 +34,8 @@
         let brainLen = cachedBrain[layerIndex].length;
         for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
           let groupLabel = "";
-          if (neuronIndex < 13) { groupLabel = "Input "; }
-          if (neuronIndex > 13 && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
+          if (neuronIndex < 16) { groupLabel = "Input "; }
+          if (neuronIndex > 16 && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
           if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
           let neuronLabel = "";
 
