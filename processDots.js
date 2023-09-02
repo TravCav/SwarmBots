@@ -148,8 +148,8 @@ function DrawGrid() {
     if (!(
       x < 1 ||
       y < 1 ||
-      x > ctx.canvas.width ||
-      y > ctx.canvas.height
+      x > ctx.canvas.width-1 ||
+      y > ctx.canvas.height-1
     )) {
 
       PlacePixel(x, y, population.dots[i].color, 0);

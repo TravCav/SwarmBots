@@ -245,12 +245,12 @@ class Dot {
       }
 
     // what's around me
-    this.brain.neurons[14] = {
-      value: this.nearbyDotCount,
-      label: "number of visible dots", connections: []
-    };
+    // this.brain.neurons[14] = {
+    //   value: this.nearbyDotCount,
+    //   label: "number of visible dots", connections: []
+    // };
 
-    this.brain.neurons[15] = {
+    this.brain.neurons[14] = {
       value: this.nearbyFoodCOunt,
       label: "number of nearby food", connections: []
     };
