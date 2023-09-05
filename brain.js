@@ -1,7 +1,8 @@
 class Brain {
   constructor() {
-    this.inputCount = 15;
-    this.neurons = new Array(this.inputCount + 20 + 8);
+    this.inputCount = 12;
+    const hiddenCount = 10;
+    this.neurons = new Array(this.inputCount + hiddenCount + 8);
     // this.neurons.push(new Array(26));
     // this.neurons.push(new Array(8));
 
@@ -59,9 +60,9 @@ class Brain {
         let inputValues = 0;
         let connectionCount = this.neurons[ni].connections.length;
         for (let ci = 0; ci < connectionCount - 1; ci++) {
-          //console.log(0,ci,ni);
+          //console.log(ni,ci,this.neurons);
           // input times a weight
-          inputValues += this.neurons[ci].value * this.neurons[ni].connections[ci][1];
+          inputValues += this.neurons[this.neurons[ni].connections[ci][0]].value * this.neurons[ni].connections[ci][1];
         }
 
         // add a bias

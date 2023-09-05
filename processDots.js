@@ -58,7 +58,7 @@ function CopyDot(dotIndex, copyDot) {
   population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
   if (population.dots[dotIndex].x < 0) { population.dots[dotIndex].x = 0; }
   if (population.dots[dotIndex].x > ctx.canvas.width) { population.dots[dotIndex].x = ctx.canvas.width; }
-  if (population.dots[dotIndex].y < 0)  {population.dots[dotIndex].y = 0; }
+  if (population.dots[dotIndex].y < 0) { population.dots[dotIndex].y = 0; }
   if (population.dots[dotIndex].y > ctx.canvas.height) { population.dots[dotIndex].y = ctx.canvas.height; }
 
   population.dots[dotIndex].brain.Mutate();
@@ -117,11 +117,11 @@ function DoTheThings() {
     }
   }
 
-  if ( fps > 50) {
+  if (fps > 50) {
     AddDots(1);
   }
-  if ( fps < 20 && population.dots > 100 ) {
-    population.dots.splice(yeetAndDelete[0],1);
+  if (fps < 20 && population.dots > 100) {
+    population.dots.splice(yeetAndDelete[0], 1);
   }
 
 }
@@ -148,18 +148,18 @@ function DrawGrid() {
     if (!(
       x < 1 ||
       y < 1 ||
-      x > ctx.canvas.width-1 ||
-      y > ctx.canvas.height-1
+      x > ctx.canvas.width - 1 ||
+      y > ctx.canvas.height - 1
     )) {
 
       PlacePixel(x, y, population.dots[i].color, 0);
-      if (mode!=='art') {
+      if (mode !== 'art') {
         PlacePixel(x - 1, y - 1, population.dots[i].color, 64);
         PlacePixel(x, y - 1, population.dots[i].color, 32);
         PlacePixel(x + 1, y - 1, population.dots[i].color, 64);
 
         PlacePixel(x - 1, y, population.dots[i].color, 32);
-        
+
         PlacePixel(x + 1, y, population.dots[i].color, 32);
 
         PlacePixel(x - 1, y + 1, population.dots[i].color, 64);
@@ -171,7 +171,7 @@ function DrawGrid() {
   }
 
   ctx.putImageData(pixels, 0, 0);
-  
+
   const now = performance.now();
   while (times.length > 0 && times[0] <= now - 1000) {
     times.shift();
@@ -184,13 +184,13 @@ function DrawGrid() {
     ctx.fillStyle = "white";
     ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
   }
-  
+
   CircleDot(population.data.mostChildrenIndex, "green", 45);
-  
+
   setTimeout(function () {
     DrawGrid();
   }, 1);
-  
+
   return;
 }
 

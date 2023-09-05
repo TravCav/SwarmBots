@@ -7,7 +7,7 @@ class neuron {
     this.value = 0;
     this.connections = [];
     for (let index = 0; index < connectionCount; index++) {
-      this.connections.push([connectionCount,0]);
+      this.connections.push([index,0]);
     }
   }
 }
