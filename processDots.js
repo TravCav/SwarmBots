@@ -23,7 +23,8 @@ let mode = params.mode; // "some_value"
 let population = {
   data: {
     mostChildren: 0,
-    mostChildrenIndex: 0
+    mostChildrenIndex: 0,
+    previousMostChildrenIndex: 0
   },
   dots: []
 };
@@ -92,6 +93,14 @@ function DoTheThings() {
 
   }
 
+  if(population.data.mostChildrenIndex != population.data.previousMostChildrenIndex)
+  {
+    //console.log(population.data.mostChildrenIndex, population.data.previousMostChildrenIndex);
+    population.data.previousMostChildrenIndex = population.data.mostChildrenIndex;
+    population.dots[population.data.mostChildrenIndex].brain.Save();
+    
+  }
+
   let yeetAndDelete = [];
   for (
     let dotIndex = 0; dotIndex < population.dots.length; dotIndex++
@@ -117,7 +126,7 @@ function DoTheThings() {
     }
   }
 
-  if (fps > 50) {
+  if (fps > 40) {
     AddDots(1);
   }
   if (fps < 20 && population.dots > 100) {
