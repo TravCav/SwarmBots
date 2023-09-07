@@ -117,7 +117,7 @@ function DoTheThings() {
     }
   }
 
-  if (fps > 50) {
+  if (fps > 40) {
     AddDots(1);
   }
   if (fps < 20 && population.dots > 100) {
