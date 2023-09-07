@@ -124,11 +124,15 @@ function DoTheThings() {
     }
   }
 
+  // population control
   if (fps > 30) {
     AddDots(1);
   }
+
   if (fps < 20 && population.dots.length > 100) {
-    population.dots.splice(yeetAndDelete[0], 1);
+    for (let index = 0; index < yeetAndDelete.length; index++) {
+      population.dots.splice(yeetAndDelete[index], 1);
+    }
   }
 
 }
