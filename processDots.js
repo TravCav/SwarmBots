@@ -93,12 +93,10 @@ function DoTheThings() {
 
   }
 
-  if(population.data.mostChildrenIndex != population.data.previousMostChildrenIndex)
-  {
-    //console.log(population.data.mostChildrenIndex, population.data.previousMostChildrenIndex);
+  if (population.data.mostChildrenIndex != population.data.previousMostChildrenIndex) {
     population.data.previousMostChildrenIndex = population.data.mostChildrenIndex;
     population.dots[population.data.mostChildrenIndex].brain.Save();
-    
+
   }
 
   let yeetAndDelete = [];
@@ -126,10 +124,10 @@ function DoTheThings() {
     }
   }
 
-  if (fps > 40) {
+  if (fps > 30) {
     AddDots(1);
   }
-  if (fps < 20 && population.dots > 100) {
+  if (fps < 20 && population.dots.length > 100) {
     population.dots.splice(yeetAndDelete[0], 1);
   }
 
