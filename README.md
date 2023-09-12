@@ -1,3 +1,5 @@
+The dots are an exploration and study of emergent behavior of evolutionary deep learning neural networks.
+
 
 See them dots? I gave'm brains! Tiny little stupid brains, but brains nonetheless.
 
