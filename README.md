@@ -1,4 +1,4 @@
-"The Dots" are an exploration and study into emergent behavior of evolutionary deep learning neural networks.  
-We start with a number of dots that each have their own unique neural network.  At first all neuron connections have a weight of zero, effectively rendering devoid of cognitive capacity.
+"The Dots" are an exploration and study into emergent behavior of evolutionary deep learning neural networks.
+The similation starts with a number of dots that each have their own neural network. At first all neuron connections have a weight of zero, effectively rendering them devoid of cognitive capacity.
 As they run out of energy, they regenerate as the offspring of another dot while copying their color and neural network and slighly modifying the color and one of the weights.
 When two dots interact the dot with the most energy will turn the other other dot into an offspring replacing it's color and neural network with slightly modified versions of its own.
