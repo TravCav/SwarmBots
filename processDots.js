@@ -23,7 +23,8 @@ let mode = params.mode; // "some_value"
 let population = {
   data: {
     mostChildren: 0,
-    mostChildrenIndex: 0
+    mostChildrenIndex: 0,
+    previousMostChildrenIndex: 0
   },
   dots: []
 };
@@ -35,6 +36,14 @@ function AddDots(dotsToAdd) {
     population.dots[i].brain.Restore();
     population.dots[i].brain.Mutate();
   }
+}
+
+function CircleDot(dotIndex, color, size) {
+  const oldDot = population.dots[dotIndex];
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.arc(oldDot.x, oldDot.y, size, 0, 2 * Math.PI);
+  ctx.stroke();
 }
 
 function CopyDot(dotIndex, copyDot) {
@@ -50,7 +59,7 @@ function CopyDot(dotIndex, copyDot) {
   population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
   if (population.dots[dotIndex].x < 0) { population.dots[dotIndex].x = 0; }
   if (population.dots[dotIndex].x > ctx.canvas.width) { population.dots[dotIndex].x = ctx.canvas.width; }
-  if (population.dots[dotIndex].y < 0)  {population.dots[dotIndex].y = 0; }
+  if (population.dots[dotIndex].y < 0) { population.dots[dotIndex].y = 0; }
   if (population.dots[dotIndex].y > ctx.canvas.height) { population.dots[dotIndex].y = ctx.canvas.height; }
 
   population.dots[dotIndex].brain.Mutate();
@@ -84,7 +93,13 @@ function DoTheThings() {
 
   }
 
+  if (population.data.mostChildrenIndex != population.data.previousMostChildrenIndex) {
+    population.data.previousMostChildrenIndex = population.data.mostChildrenIndex;
+    population.dots[population.data.mostChildrenIndex].brain.Save();
 
+  }
+
+  let yeetAndDelete = [];
   for (
     let dotIndex = 0; dotIndex < population.dots.length; dotIndex++
   ) {
@@ -103,14 +118,23 @@ function DoTheThings() {
         let copyIndex = Math.floor(Math.random() * population.dots.length);
         copyDot = population.dots[copyIndex];
         CopyDot(dotIndex, copyDot);
+        yeetAndDelete.push(dotIndex);
       }
 
     }
   }
 
-  if (population.dots.length < upperLimit && fps > 40) {
+  // population control
+  if (fps > 30) {
     AddDots(1);
   }
+
+  if (fps < 20 && population.dots.length > 100) {
+    for (let index = 0; index < yeetAndDelete.length; index++) {
+      population.dots.splice(yeetAndDelete[index], 1);
+    }
+  }
+
 }
 
 function DrawGrid() {
@@ -135,18 +159,18 @@ function DrawGrid() {
     if (!(
       x < 1 ||
       y < 1 ||
-      x > ctx.canvas.width ||
-      y > ctx.canvas.height
+      x > ctx.canvas.width - 1 ||
+      y > ctx.canvas.height - 1
     )) {
 
       PlacePixel(x, y, population.dots[i].color, 0);
-      if (mode!=='art') {
+      if (mode !== 'art') {
         PlacePixel(x - 1, y - 1, population.dots[i].color, 64);
         PlacePixel(x, y - 1, population.dots[i].color, 32);
         PlacePixel(x + 1, y - 1, population.dots[i].color, 64);
 
         PlacePixel(x - 1, y, population.dots[i].color, 32);
-        
+
         PlacePixel(x + 1, y, population.dots[i].color, 32);
 
         PlacePixel(x - 1, y + 1, population.dots[i].color, 64);
@@ -158,7 +182,7 @@ function DrawGrid() {
   }
 
   ctx.putImageData(pixels, 0, 0);
-  
+
   const now = performance.now();
   while (times.length > 0 && times[0] <= now - 1000) {
     times.shift();
@@ -166,13 +190,18 @@ function DrawGrid() {
   times.push(now);
   fps = times.length;
 
-  // ctx.fillStyle = "white";
-  // ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
-  
+  var networkDiv = document.getElementById("mynetwork");
+  if (networkDiv.style.display === "block") {
+    ctx.fillStyle = "white";
+    ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+  }
+
+  CircleDot(population.data.mostChildrenIndex, "green", 45);
+
   setTimeout(function () {
     DrawGrid();
   }, 1);
-  
+
   return;
 }
 
@@ -186,7 +215,7 @@ function PlacePixel(x, y, color, d) {
 }
 
 
-AddDots(10);
+AddDots(25);
 for (let i = 0; i < 120; i++) {
   times.push(performance.now());
 }
