@@ -1,7 +1,7 @@
 class Brain {
   constructor() {
     this.inputCount = 12;
-    const hiddenCount = 40;
+    const hiddenCount = 30;
     this.neurons = new Array(this.inputCount + hiddenCount + 8);
 
     //16 inputs
