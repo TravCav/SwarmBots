@@ -96,6 +96,7 @@ class Dot {
         } else {
           this.children++;
           this.energy += this.nearestDot.energy;
+          if (this.energy > 100) { this.energy=100;}
 
           return false;
         }

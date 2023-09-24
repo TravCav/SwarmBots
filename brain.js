@@ -1,7 +1,7 @@
 class Brain {
   constructor() {
     this.inputCount = 12;
-    const hiddenCount = 30;
+    const hiddenCount = 20;
     this.neurons = new Array(this.inputCount + hiddenCount + 8);
 
     //16 inputs
@@ -44,7 +44,7 @@ class Brain {
 
     // TODO: all the neurons have references to the same connection.
     // randomly adjust it.
-    this.neurons[neuronIndex].connections[connectionIndex][1] += Math.random() * 2 - 1;
+    this.neurons[neuronIndex].connections[connectionIndex][1] += (Math.random() * 100) - 50;
 
     // chance to reset connection
     if (Math.random() < .5) {
