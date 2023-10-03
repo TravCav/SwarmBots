@@ -53,7 +53,7 @@ function CopyDot(dotIndex, copyDot) {
 
   population.dots[dotIndex].CopyColor(copyDot);
 
-  let r = (Math.random() * 25);
+  let r = (Math.random() * 25) + 25;
   const a = Math.random() * 6.28;
   population.dots[dotIndex].x = Math.floor(r * Math.cos(a) + copyDot.x);
   population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
@@ -207,6 +207,7 @@ function DrawGrid() {
 
 
 function PlacePixel(x, y, color, d) {
+  d = d * 0.5;
   const index = (x + y * ctx.canvas.width) * 4;
   pixels.data[index] = color.r - d;
   pixels.data[index + 1] = color.g - d;
