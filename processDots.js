@@ -53,7 +53,7 @@ function CopyDot(dotIndex, copyDot) {
 
   population.dots[dotIndex].CopyColor(copyDot);
 
-  let r = (Math.random() * 25) + 25;
+  let r = (Math.random() * 50);
   const a = Math.random() * 6.28;
   population.dots[dotIndex].x = Math.floor(r * Math.cos(a) + copyDot.x);
   population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
