@@ -1,14 +1,7 @@
 class Dot {
   constructor() {
-    this.vector = {
-      x: 0,
-      y: 0
-    };
-    this.color = {
-      r: 127,
-      g: 127,
-      b: 127,
-    };
+    this.vector = { x: 0, y: 0 };
+    this.color = { r: 127, g: 127, b: 127 };
     this.age = 0;
     this.energy = 10;
     this.tickRate = 0.02;
@@ -24,49 +17,50 @@ class Dot {
     this.generation = 0;
     this.nearbyDistance = 50;
     this.nearbyDotCount = 0;
-    this.nearbyFoodCOunt = 0;
+    this.nearbyFoodCount = 0;
+  }
+
+
+
+  // Method to calculate the radius based on energy using a logarithmic scale
+  calculateRadius() {
+    const minSize = 1;
+    const maxSize = 10;
+    const logEnergy = Math.log(this.energy + 1); // Add 1 to avoid log(0)
+    const scale = (maxSize - minSize) / Math.log(100 + 1); // Adjust 100 based on max expected energy
+    return Math.max(minSize, Math.min(maxSize, minSize + logEnergy * scale));
   }
 
   CheckDots(pop) {
-    let smallestdistance = 100000000;
-    let smallestfooddistance = 100000000;
+    let smallestDistance = 100000000;
+    let nearestDistance = 100000000;
     this.nearbyDotCount = 0;
-    this.nearbyFoodCOunt = 0;
-    for (
-      let closeIndex = 0; closeIndex < pop.dots.length; closeIndex++
-    ) {
-      if (this !== pop.dots[closeIndex]) {
-        // check closeness
-        const distance = this.GetDistance(pop.dots[closeIndex]);
-        // if (distance < this.nearbyDistance) {
-        //   this.nearbyDotCount++;
-        // }
 
-        if (distance < smallestdistance) {
-          smallestdistance = distance;
-          this.nearestDot = pop.dots[closeIndex];
+    for (let closeIndex = 0; closeIndex < pop.dots.length; closeIndex++) {
+        if (this !== pop.dots[closeIndex]) {
+            const distance = this.GetDistance(pop.dots[closeIndex]);
+
+            // Track the nearest dot regardless of energy
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                this.nearestDot = pop.dots[closeIndex];
+            }
+
+            // Track the most energetic food that this dot can eat (lower energy)
+            if (this.energy > pop.dots[closeIndex].energy) {
+                if (!this.mostEnergeticFood || pop.dots[closeIndex].energy > this.mostEnergeticFood.energy) {
+                    this.mostEnergeticFood = pop.dots[closeIndex];
+                }
+            }
         }
-
-        // i can eat it
-        if (this.energy > pop.dots[closeIndex].energy) {
-          // this.nearbyFoodCOunt++;
-          // if (distance < smallestfooddistance) {
-          //   smallestfooddistance = distance;
-          //   this.nearestFood = pop.dots[closeIndex];
-          // }
-
-
-
-          if ((this.mostEnergeticFood != null && pop.dots[closeIndex].energy < this.energy && pop.dots[closeIndex].energy > this.mostEnergeticFood.energy) || this.mostEnergeticFood == null) {
-            this.mostEnergeticFood = pop.dots[closeIndex];
-          }
-        }
-      }
     }
-  }
+}
+
+
 
   CheckDeath() {
-    return this.Consumed() || this.energy < 0 || this.WallDeath();
+    const died = this.Consumed() || this.energy < 0 || this.WallDeath();
+    return died;
   }
 
   CopyColor(dotToCopy) {
@@ -96,7 +90,7 @@ class Dot {
         } else {
           this.children++;
           this.energy += this.nearestDot.energy;
-          if (this.energy > 100) { this.energy=100;}
+          if (this.energy > 100) { this.energy = 100; }
 
           return false;
         }
@@ -213,23 +207,6 @@ class Dot {
       this.brain.neurons[9] = { value: 0, label: "nearest dot b diff", connections: [] };
     }
 
-    //     // closest dot that it can eat. if any.
-    // if (this.nearestFood != null && (this.GetDistance(this.nearestFood) < this.nearbyDistance * 2)) {
-    //   this.brain.neurons[10] = {
-    //     value: this.nearestFood.x - this.x,
-    //     label: "closest food x", connections: []
-    //   };
-    //   this.brain.neurons[11] = {
-    //     value: this.nearestFood.y - this.y,
-    //     label: "closest food y", connections: []
-    //   };
-
-    // } else {
-    //   // can't see anything.
-    //   this.brain.neurons[10] = { value: 0, label: "closest food x", connections: [] };
-    //   this.brain.neurons[11] = { value: 0, label: "closest food y", connections: [] };
-    // }
-
     // closest most energetic dot that it can eat. if any.
     if (this.mostEnergeticFood != null) {
       this.brain.neurons[10] = {
@@ -245,14 +222,6 @@ class Dot {
       this.brain.neurons[10] = { value: 0, label: "best food x", connections: [] };
       this.brain.neurons[11] = { value: 0, label: "best food y", connections: [] };
     }
-
-
-
-    // this.brain.neurons[12] = {
-    //   value: this.nearbyFoodCOunt,
-    //   label: "number of nearby food", connections: []
-    // };
-
 
 
   }

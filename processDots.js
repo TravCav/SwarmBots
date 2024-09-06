@@ -137,73 +137,127 @@ function DoTheThings() {
 
 }
 
+
+function blendColors(color1, color2) {
+  const blendedR = Math.floor((color1.r + color2.r) / 2);
+  const blendedG = Math.floor((color1.g + color2.g) / 2);
+  const blendedB = Math.floor((color1.b + color2.b) / 2);
+
+  return { r: blendedR, g: blendedG, b: blendedB };
+}
+function drawConnections(dots) {
+  for (let i = 0; i < dots.length; i++) {
+      const dot = dots[i];
+
+      // Check if the dot has found the nearest dot
+      if (dot.nearestDot) {
+          const dx = dot.x - dot.nearestDot.x;
+          const dy = dot.y - dot.nearestDot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Blend the colors of the two dots
+          const blendedColor = blendColors(dot.color, dot.nearestDot.color);
+
+          // Line color based on the blended color of the dots
+          const opacity = 1 - (distance / 300); // Adjust opacity with distance
+          ctx.strokeStyle = `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, ${Math.max(0, opacity)})`;
+
+          ctx.lineWidth = 0.5;
+
+          ctx.beginPath();
+          ctx.moveTo(dot.x, dot.y);
+          ctx.lineTo(dot.nearestDot.x, dot.nearestDot.y);
+          ctx.stroke();
+      }
+
+      // Check if the dot has found an edible target (most energetic food)
+      if (dot.mostEnergeticFood) {
+          const dx = dot.x - dot.mostEnergeticFood.x;
+          const dy = dot.y - dot.mostEnergeticFood.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Blend the colors of the two dots
+          const blendedColor = blendColors(dot.color, dot.mostEnergeticFood.color);
+
+          // Line color based on the blended color of the dots
+          const opacity = 1 - (distance / 100); // Adjust opacity with distance
+          ctx.strokeStyle = `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, ${Math.max(0, opacity)})`;
+
+          ctx.lineWidth = 1.0; // Make this line slightly thicker
+
+          ctx.beginPath();
+          ctx.moveTo(dot.x, dot.y);
+          ctx.lineTo(dot.mostEnergeticFood.x, dot.mostEnergeticFood.y);
+          ctx.stroke();
+      }
+  }
+}
+
+
+
+function drawParticle(x, y, color, radius) {
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
+  gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
+  gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+
 function DrawGrid() {
   ctx.canvas.width = window.innerWidth;
   ctx.canvas.height = window.innerHeight;
 
   DoTheThings();
 
-  if (mode !== 'art') {
-    // clear screen
-    pixels = ctx.createImageData(ctx.canvas.width, ctx.canvas.height);
-  }
-  ////let index = 0;
+  // Clear the screen
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  // draw
+  // First, each dot finds its nearest and most energetic food
   for (let i = 0; i < population.dots.length; i++) {
-    let x = Math.floor(population.dots[i].x);
-    let y = Math.floor(population.dots[i].y);
-
-    ////let dotSize = 1;
-
-    if (!(
-      x < 1 ||
-      y < 1 ||
-      x > ctx.canvas.width - 1 ||
-      y > ctx.canvas.height - 1
-    )) {
-
-      PlacePixel(x, y, population.dots[i].color, 0);
-      if (mode !== 'art') {
-        PlacePixel(x - 1, y - 1, population.dots[i].color, 64);
-        PlacePixel(x, y - 1, population.dots[i].color, 32);
-        PlacePixel(x + 1, y - 1, population.dots[i].color, 64);
-
-        PlacePixel(x - 1, y, population.dots[i].color, 32);
-
-        PlacePixel(x + 1, y, population.dots[i].color, 32);
-
-        PlacePixel(x - 1, y + 1, population.dots[i].color, 64);
-        PlacePixel(x, y + 1, population.dots[i].color, 32);
-        PlacePixel(x + 1, y + 1, population.dots[i].color, 64);
-      }
-
-    }
+      let dot = population.dots[i];
+      dot.CheckDots(population); // Find nearest and most energetic food dots
   }
 
-  ctx.putImageData(pixels, 0, 0);
+  // Draw the connections to both nearest and most energetic dots
+  drawConnections(population.dots);
 
+  // Draw each dot as a particle
+  for (let i = 0; i < population.dots.length; i++) {
+      let dot = population.dots[i];
+
+      // Calculate the radius based on energy
+      let radius = dot.calculateRadius();
+
+      // Draw the particle with a glow
+      drawParticle(dot.x, dot.y, dot.color, radius);
+  }
+
+  // Track and display frame rate and dot count
   const now = performance.now();
   while (times.length > 0 && times[0] <= now - 1000) {
-    times.shift();
+      times.shift();
   }
   times.push(now);
   fps = times.length;
 
   var networkDiv = document.getElementById("mynetwork");
   if (networkDiv.style.display === "block") {
-    ctx.fillStyle = "white";
-    ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+      ctx.fillStyle = "white";
+      ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
   }
 
   CircleDot(population.data.mostChildrenIndex, "green", 45);
 
   setTimeout(function () {
-    DrawGrid();
+      DrawGrid();
   }, 1);
-
-  return;
 }
+
+
 
 
 function PlacePixel(x, y, color, d) {

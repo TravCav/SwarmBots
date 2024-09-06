@@ -77,6 +77,26 @@ class Brain {
     }
   }
 
+  Processneurons2() {
+    const neuronCount = this.neurons.length;
+    for (let ni = this.inputCount + 1; ni < neuronCount; ni++) {
+        let inputValues = this.neurons[ni].connections.reduce((acc, conn, ci) => {
+            const inputTimesWeight = this.neurons[conn[0]].value * conn[1];
+            if (inputTimesWeight === 0 && ci > this.inputCount && conn[1] !== 0) {
+                conn[1] = 0;
+                this.Mutate();
+            }
+            return acc + inputTimesWeight;
+        }, 0);
+
+        // add a bias
+        inputValues += this.neurons[ni].connections[connectionCount - 1][1];
+
+        // activate
+        this.neurons[ni].value = Math.tanh(inputValues);
+    }
+}
+
   Restore() {
     var oldBrain = JSON.parse(localStorage.getItem("reconnect"));
     if (oldBrain != null) {
