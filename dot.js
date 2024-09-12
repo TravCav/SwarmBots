@@ -25,7 +25,7 @@ class Dot {
   // Method to calculate the radius based on energy using a logarithmic scale
   calculateRadius() {
     const minSize = 1;
-    const maxSize = 10;
+    const maxSize = 5;
     const logEnergy = Math.log(this.energy + 1); // Add 1 to avoid log(0)
     const scale = (maxSize - minSize) / Math.log(100 + 1); // Adjust 100 based on max expected energy
     return Math.max(minSize, Math.min(maxSize, minSize + logEnergy * scale));
