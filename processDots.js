@@ -223,7 +223,7 @@ function DrawGrid() {
   }
 
   // Draw the connections to both nearest and most energetic dots
-  drawConnections(population.dots);
+  //drawConnections(population.dots);
 
   // Draw each dot as a particle
   for (let i = 0; i < population.dots.length; i++) {
