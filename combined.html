@@ -1,0 +1,831 @@
+<html>
+
+<head>
+    <style>
+        body {
+            background-color: #000000;
+            margin: 0px;
+        }
+
+        canvas,
+        img {
+            image-rendering: optimizeSpeed;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: optimize-contrast;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+
+        #mynetwork {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 600px;
+            border: 1px solid #000000;
+        }
+    </style>
+    <script type="text/javascript" src="vis-network.min.js"></script>
+
+    <script type="text/javascript">
+        var nodes = null;
+        var edges = null;
+        var network = null;
+
+        function draw() {
+            var cachedBrain = JSON.parse(localStorage.getItem("reconnect"));
+            if (cachedBrain != null) {
+                nodes = [];
+                const inputCount = 12;
+
+                let brainLen = cachedBrain.length;
+                for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
+                    let groupLabel = "";
+                    if (neuronIndex < inputCount) { groupLabel = "Input "; }
+                    if (neuronIndex >= inputCount && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
+                    if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
+                    let neuronLabel = "";
+
+                    neuronLabel = cachedBrain[neuronIndex].label;
+                 
+
+                    neuronLabel += " (" + groupLabel + ") [" + neuronIndex + "]"
+
+                    nodes.push({ id: neuronIndex, label: neuronLabel, group: groupLabel, font: { color: "white" } })
+                }
+                edges = [];
+
+                for (let neuronIndex = inputCount; neuronIndex < cachedBrain.length; neuronIndex++) {
+                    for (let connectionIndex = 0; connectionIndex < cachedBrain[neuronIndex].connections.length; connectionIndex++) {
+                        if (cachedBrain[neuronIndex].connections[connectionIndex][1] > 0) {
+                            edges.push({ from: connectionIndex, to: neuronIndex, value: Math.abs(cachedBrain[neuronIndex].connections[connectionIndex][1]), arrows: "to" })
+                        }
+                    }
+                }
+
+                // Instantiate our network object.
+                var container = document.getElementById("mynetwork");
+                var data = {
+                    nodes: nodes,
+                    edges: edges,
+                };
+                var options = {
+                    nodes: {
+                        shape: "dot",
+                        size: 6
+                    },
+                    edges: {
+                        smooth: false
+                    },
+                    physics: {
+                        forceAtlas2Based: {
+                            theta: 0.5,
+                            gravitationalConstant: -150,
+                            centralGravity: 0.03,
+                            springConstant: 0.04,
+                            springLength: 100,
+                            damping: 5,
+                            avoidOverlap: 0
+                        },
+                        maxVelocity: 1046,
+                        solver: "forceAtlas2Based",
+                        timestep: 0.25,
+                        stabilization: { iterations: 0 }
+                    }
+                };
+                network = new vis.Network(container, data, options);
+
+                // network.on("click", function (e) {
+                //     //Zoom only on single node clicks, zoom out otherwise
+                //     if (e.nodes.length !== 1) {
+                //         network.fit();
+                //         return;
+                //     }
+                //     var nodeId = e.nodes[0];
+                //     //Find out what group the node belongs to
+                //     var group = getGroup(nodeId);
+                //     //TODO: How do you want to handle ungrouped nodes?
+                //     if (group === undefined) return;
+                //     var groupNodes = getGroupNodes(group);
+                //     network.fit({
+                //         nodes: groupNodes
+                //     });
+                // });
+            }
+        }
+
+        function toggleVis() {
+            var networkDiv = document.getElementById("mynetwork");
+            if (networkDiv.style.display === "none") {
+                networkDiv.style.display = "block";
+                draw();
+            } else {
+                networkDiv.style.display = "none";
+            }
+        }
+
+    </script>
+    <title>Swarm Bots</title>
+</head>
+
+<body onload="draw()">
+    <canvas id="gridCanvas" width="1000" height="1000" onclick="toggleVis()"></canvas>
+    <div id="mynetwork" style="display:none"></div>
+    <script>
+      class neuron {
+  constructor(connectionCount) {
+    // one for the bias and one for cycling back in.
+    connectionCount += 1;
+    this.label = "";
+    this.type = "";
+    this.value = 0;
+    this.connections = [];
+    for (let index = 0; index < connectionCount; index++) {
+      this.connections.push([index, 0]);
+    }
+  }
+}
+
+    </script>
+    <script>
+      class Brain {
+  constructor() {
+    this.inputCount = 12;
+    const hiddenCount = 30;
+    this.neurons = new Array(this.inputCount + hiddenCount + 8);
+
+    //16 inputs
+    //26 hidden
+    //8 output
+
+    // fill neurons
+    for (let ni = 0; ni < this.neurons.length; ni++) {
+      this.neurons[ni] = new neuron(this.neurons.length);
+    }
+
+    let brainLen = this.neurons.length - 1;
+    this.neurons[brainLen - 0].label = 'up left';
+    this.neurons[brainLen - 1].label = 'up';
+    this.neurons[brainLen - 2].label = 'up right';
+    this.neurons[brainLen - 3].label = 'left';
+    this.neurons[brainLen - 4].label = 'right';
+    this.neurons[brainLen - 5].label = 'down left';
+    this.neurons[brainLen - 6].label = 'down';
+    this.neurons[brainLen - 7].label = 'down right';
+  }
+
+  Copy(otherBrain) {
+    // loop though neurons
+    for (let ni = 0; ni < this.neurons.length; ni++) {
+      // loop though connections
+      for (let nc = 0; nc < this.neurons[ni].connections.length; nc++) {
+        // copy that floppy
+        this.neurons[ni].connections[nc][1] = otherBrain.neurons[ni].connections[nc][1];
+      }
+    }
+  }
+
+  Mutate() {
+    // pick a random neuron
+    let neuronIndex = Math.floor(Math.random() * (this.neurons.length - (this.inputCount))) + this.inputCount;
+
+    // pick a random connection
+    let connectionIndex = Math.floor(Math.random() * (this.neurons[neuronIndex].connections.length));
+
+    // TODO: all the neurons have references to the same connection.
+    // randomly adjust it.
+    this.neurons[neuronIndex].connections[connectionIndex][1] += (Math.random() * 100) - 50;
+
+    // chance to reset connection
+    if (Math.random() < .1) {
+      this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
+    }
+  }
+
+  Processneurons() {
+    for (let ni = this.inputCount + 1; ni < this.neurons.length; ni++) {
+      let inputValues = 0;
+      let connectionCount = this.neurons[ni].connections.length;
+      for (let ci = 0; ci < connectionCount - 1; ci++) {
+        //console.log(ni,ci,this.neurons);
+        // input times a weight
+        const inputTimesWeight = this.neurons[this.neurons[ni].connections[ci][0]].value * this.neurons[ni].connections[ci][1];
+        inputValues += inputTimesWeight;
+        if (inputTimesWeight === 0 && ci > this.inputCount && this.neurons[ni].connections[ci][1] != 0) {
+          this.neurons[ni].connections[ci][1] = 0;
+          this.Mutate();
+        }
+      }
+
+      // add a bias
+      inputValues += this.neurons[ni].connections[connectionCount - 1][1];
+
+      // activate
+      //// this.neurons[ni].value = 1 / (1 + Math.exp(-inputValues));  // sigmoid
+      this.neurons[ni].value = Math.tanh(inputValues);
+      // this.neurons[ni].value = Math.max(0,inputValues); // ReLU
+    }
+  }
+
+  Processneurons2() {
+    const neuronCount = this.neurons.length;
+    for (let ni = this.inputCount + 1; ni < neuronCount; ni++) {
+        let inputValues = this.neurons[ni].connections.reduce((acc, conn, ci) => {
+            const inputTimesWeight = this.neurons[conn[0]].value * conn[1];
+            if (inputTimesWeight === 0 && ci > this.inputCount && conn[1] !== 0) {
+                conn[1] = 0;
+                this.Mutate();
+            }
+            return acc + inputTimesWeight;
+        }, 0);
+
+        // add a bias
+        inputValues += this.neurons[ni].connections[connectionCount - 1][1];
+
+        // activate
+        this.neurons[ni].value = Math.tanh(inputValues);
+    }
+}
+
+  Restore() {
+    var oldBrain = JSON.parse(localStorage.getItem("reconnect"));
+    if (oldBrain != null) {
+      // does the net have the same amount of neurons?
+      if (this.neurons.length === oldBrain.length) {
+
+        // does the layer have the same amount of neurons?
+        if (this.neurons.length === oldBrain.length) {
+          for (let ni = 0; ni < this.neurons.length; ni++) {
+
+
+            // does the neuron have the same amount of connections?
+            if (this.neurons[ni].connections.length === oldBrain[ni].connections.length) {
+              // copy that floppy.
+              this.neurons[ni].connections = oldBrain[ni].connections;
+            }
+          }
+        }
+
+      }
+    }
+  }
+  Save() {
+    var dotString = JSON.stringify(this.neurons);
+    localStorage.setItem("reconnect", dotString);
+
+    var networkDiv = document.getElementById("mynetwork");
+    if (networkDiv.style.display === "block") {
+      draw();
+    }
+  }
+}
+
+    </script>
+    <script>
+      class Dot {
+  constructor() {
+    this.vector = { x: 0, y: 0 };
+    this.color = { r: 127, g: 127, b: 127 };
+    this.age = 0;
+    this.energy = 10;
+    this.tickRate = 0.02;
+    this.nearestDot = null;
+    this.nearestFood = null;
+    this.mostEnergeticFood = null;
+    this.x = Math.random() * ctx.canvas.width;
+    this.y = Math.random() * ctx.canvas.height;
+    this.brain = new Brain();
+    this.population = [];
+    this.consumed = false;
+    this.children = 0;
+    this.generation = 0;
+    this.nearbyDistance = 50;
+    this.nearbyDotCount = 0;
+    this.nearbyFoodCount = 0;
+  }
+
+
+
+  // Method to calculate the radius based on energy using a logarithmic scale
+  calculateRadius() {
+    const minSize = 1;
+    const maxSize = 5;
+    const logEnergy = Math.log(this.energy + 1); // Add 1 to avoid log(0)
+    const scale = (maxSize - minSize) / Math.log(100 + 1); // Adjust 100 based on max expected energy
+    return Math.max(minSize, Math.min(maxSize, minSize + logEnergy * scale));
+  }
+
+  CheckDots(pop) {
+    let smallestDistance = 100000000;
+    let nearestDistance = 100000000;
+    this.nearbyDotCount = 0;
+
+    for (let closeIndex = 0; closeIndex < pop.dots.length; closeIndex++) {
+        if (this !== pop.dots[closeIndex]) {
+            const distance = this.GetDistance(pop.dots[closeIndex]);
+
+            // Track the nearest dot regardless of energy
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                this.nearestDot = pop.dots[closeIndex];
+            }
+
+            // Track the most energetic food that this dot can eat (lower energy)
+            if (this.energy > pop.dots[closeIndex].energy) {
+                if (!this.mostEnergeticFood || pop.dots[closeIndex].energy > this.mostEnergeticFood.energy) {
+                    this.mostEnergeticFood = pop.dots[closeIndex];
+                }
+            }
+        }
+    }
+}
+
+
+
+  CheckDeath() {
+    const died = this.Consumed() || this.energy < 0 || this.WallDeath();
+    return died;
+  }
+
+  CopyColor(dotToCopy) {
+    do {
+      this.color.r = this.ColorBoundCheck(dotToCopy.color.r + Math.floor((Math.random() * 32) - 16));
+      this.color.g = this.ColorBoundCheck(dotToCopy.color.g + Math.floor((Math.random() * 32) - 16));
+      this.color.b = this.ColorBoundCheck(dotToCopy.color.b + Math.floor((Math.random() * 32) - 16));
+    } while (this.color.r + this.color.g + this.color.b < 127);
+  }
+
+  ColorBoundCheck(color) {
+    if (color > 255) { return 255; }
+    if (color < 0) { return 0; }
+    return color;
+  }
+
+  Consumed() {
+    if (this.nearestDot !== null) {
+      const dx = this.x - this.nearestDot.x;
+      const dy = this.y - this.nearestDot.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < 1) {
+        if (this.energy < this.nearestDot.energy) {
+          this.energy = -2;
+          this.consumed = true;
+          return true;
+        } else {
+          this.children++;
+          this.energy += this.nearestDot.energy;
+          if (this.energy > 100) { this.energy = 100; }
+
+          return false;
+        }
+      }
+    }
+    return false;
+  }
+
+  DifferentColor(otherColor) {
+    return (
+      this.color.r !== otherColor.r ||
+      this.color.g !== otherColor.g ||
+      this.color.b !== otherColor.b
+    );
+  }
+
+  DoMovement(cWidth, cHeight) {
+    this.ThinkAboutStuff(cWidth, cHeight);
+    let brainLen = this.brain.neurons.length - 1;
+    let vectorModifier = 0.1;
+    // this.vector.x += ((this.brain.neurons[brainLen-5].value + this.brain.neurons[brainLen-6].value + this.brain.neurons[brainLen-7].value) - (this.brain.neurons[brainLen-0].value + this.brain.neurons[brainLen-1].value + this.brain.neurons[brainLen-2].value)) / 3;
+    // this.vector.y += ((this.brain.neurons[brainLen-2].value + this.brain.neurons[brainLen-4].value + this.brain.neurons[brainLen-7].value) - (this.brain.neurons[brainLen-0].value + this.brain.neurons[brainLen-3].value + this.brain.neurons[brainLen-5].value)) / 3;
+
+    // 0,1,2
+    // 3,-,4
+    // 5,6,7
+
+    // this.vector.x += ((this.brain.neurons[5].value + this.brain.neurons[6].value + this.brain.neurons[7].value) - (this.brain.neurons[0].value + this.brain.neurons[1].value + this.brain.neurons[2].value)) / 3;
+    // this.vector.y += ((this.brain.neurons[2].value + this.brain.neurons[4].value + this.brain.neurons[7].value) - (this.brain.neurons[0].value + this.brain.neurons[3].value + this.brain.neurons[5].value)) / 3;
+
+    this.vector.x += ((this.brain.neurons[brainLen - 4].value + this.brain.neurons[brainLen - 1].value + this.brain.neurons[brainLen].value) - (this.brain.neurons[brainLen - 7].value + this.brain.neurons[brainLen - 6].value + this.brain.neurons[brainLen - 5].value)) / 3;
+    this.vector.y += ((this.brain.neurons[brainLen - 5].value + this.brain.neurons[brainLen - 3].value + this.brain.neurons[brainLen].value) - (this.brain.neurons[brainLen - 7].value + this.brain.neurons[brainLen - 4].value + this.brain.neurons[brainLen - 2].value)) / 3;
+
+    this.x += (this.vector.x * vectorModifier);
+    this.y += (this.vector.y * vectorModifier);
+
+    const lastVector = Math.sqrt(this.vector.x * this.vector.x + this.vector.y * this.vector.y) / 1000;
+    this.energy -= this.tickRate + lastVector;
+    this.age++;
+  }
+
+  GetDistance(otherDot) {
+    const dx = this.x - otherDot.x;
+    const dy = this.y - otherDot.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance;
+  }
+
+  GetInputs(cWidth, cHeight) {
+
+    // know thyself
+    this.brain.neurons[0] = {
+      value: this.age,
+      label: "age",
+      connections: []
+    };
+
+    this.brain.neurons[1] = {
+      value: this.energy,
+      label: "energy",
+      connections: []
+    };
+    this.brain.neurons[2] = {
+      value: this.vector.x,
+      label: "x vector",
+      connections: []
+    };
+    this.brain.neurons[3] = {
+      value: this.vector.y,
+      label: "y vector",
+      connections: []
+    };
+
+    // closest dot that it can see. if any.
+    if (this.GetDistance(this.nearestDot) < this.nearbyDistance) {
+      this.brain.neurons[4] = {
+        value: this.nearestDot.x - this.x,
+        label: "nearest dot x distance",
+        connections: []
+      };
+      this.brain.neurons[5] = {
+        value: this.nearestDot.y - this.y,
+        label: "nearest dot y distance",
+        connections: []
+      };
+      this.brain.neurons[6] = {
+        value: this.nearestDot.energy - this.energy,
+        label: "nearest dot energy",
+        connections: []
+      };
+
+      this.brain.neurons[7] = {
+        value: Math.abs(this.color.r - this.nearestDot.color.r),
+        label: "nearest dot r diff",
+        connections: []
+      };
+      this.brain.neurons[8] = {
+        value: Math.abs(this.color.g - this.nearestDot.color.g),
+        label: "nearest dot g diff",
+        connections: []
+      };
+      this.brain.neurons[9] = {
+        value: Math.abs(this.color.b - this.nearestDot.color.b),
+        label: "nearest dot b diff",
+        connections: []
+      };
+    } else {
+      // can't see anything.
+      this.brain.neurons[4] = { value: 0, label: "nearest dot x distance", connections: [] };
+      this.brain.neurons[5] = { value: 0, label: "nearest dot y distance", connections: [] };
+      this.brain.neurons[6] = { value: 0, label: "nearest dot energy", connections: [] };
+      this.brain.neurons[7] = { value: 0, label: "nearest dot r diff", connections: [] };
+      this.brain.neurons[8] = { value: 0, label: "nearest dot g diff", connections: [] };
+      this.brain.neurons[9] = { value: 0, label: "nearest dot b diff", connections: [] };
+    }
+
+    // closest most energetic dot that it can eat. if any.
+    if (this.mostEnergeticFood != null) {
+      this.brain.neurons[10] = {
+        value: this.mostEnergeticFood.x - this.x,
+        label: "best food x", connections: []
+      };
+      this.brain.neurons[11] = {
+        value: this.mostEnergeticFood.y - this.y,
+        label: "best food y", connections: []
+      };
+    } else {
+      // can't see anything.
+      this.brain.neurons[10] = { value: 0, label: "best food x", connections: [] };
+      this.brain.neurons[11] = { value: 0, label: "best food y", connections: [] };
+    }
+
+
+  }
+
+  ThinkAboutStuff(cWidth, cHeight) {
+    this.GetInputs(cWidth, cHeight);
+    this.brain.Processneurons();
+  }
+
+  WallDeath() {
+    return (
+      this.x > ctx.canvas.width ||
+      this.x < 1 ||
+      this.y > ctx.canvas.height ||
+      this.y < 1
+    );
+  }
+}
+    </script>
+    <script>
+      let cvs = document.getElementById("gridCanvas");
+let ctx = cvs.getContext("2d");
+
+const times = [];
+let fps;
+
+ctx.canvas.width = window.innerWidth;
+ctx.canvas.height = window.innerHeight;
+let centerX = ctx.canvas.width / 2;
+let centerY = ctx.canvas.height / 2;
+let pixels = ctx.createImageData(ctx.canvas.width, ctx.canvas.height);
+let density = 100000;
+
+let lowerLimit = ((ctx.canvas.width * ctx.canvas.height) / 10000) * 1;
+let upperLimit = ((ctx.canvas.width * ctx.canvas.height) / 10000) * density;
+
+const params = new Proxy(new URLSearchParams(window.location.search), {
+  get: (searchParams, prop) => searchParams.get(prop),
+});
+// Get the value of "some_key" in eg "https://example.com/?some_key=some_value"
+let mode = params.mode; // "some_value"
+
+let population = {
+  data: {
+    mostChildren: 0,
+    mostChildrenIndex: 0,
+    previousMostChildrenIndex: 0
+  },
+  dots: []
+};
+
+function AddDots(dotsToAdd) {
+  for (let i = 0; i < dotsToAdd; i++) {
+    population.dots.push(new Dot());
+
+    population.dots[i].brain.Restore();
+    population.dots[i].brain.Mutate();
+  }
+}
+
+function CircleDot(dotIndex, color, size) {
+  const oldDot = population.dots[dotIndex];
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.arc(oldDot.x, oldDot.y, size, 0, 2 * Math.PI);
+  ctx.stroke();
+}
+
+
+function drawBestDotHighlight(dot) {
+  if (!dot) return;
+  
+  const highlightRadius = dot.calculateRadius() + 4;
+  const pulseAmount = Math.sin(performance.now() / 200) * 0.5 + 0.5; // Pulsing effect
+  
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + pulseAmount * 0.7})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(dot.x, dot.y, highlightRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Optional: Add a label above the dot
+  ctx.fillStyle = 'white';
+  ctx.font = '12px Arial';
+  ctx.fillText(`Best: ${dot.children} children`, dot.x + highlightRadius + 5, dot.y);
+}
+
+function CopyDot(dotIndex, copyDot) {
+  population.dots[dotIndex].brain.Copy(
+    copyDot.brain
+  );
+
+  population.dots[dotIndex].CopyColor(copyDot);
+
+  let r = (Math.random() * 50);
+  const a = Math.random() * 6.28;
+  population.dots[dotIndex].x = Math.floor(r * Math.cos(a) + copyDot.x);
+  population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
+  if (population.dots[dotIndex].x < 0) { population.dots[dotIndex].x = 0; }
+  if (population.dots[dotIndex].x > ctx.canvas.width) { population.dots[dotIndex].x = ctx.canvas.width; }
+  if (population.dots[dotIndex].y < 0) { population.dots[dotIndex].y = 0; }
+  if (population.dots[dotIndex].y > ctx.canvas.height) { population.dots[dotIndex].y = ctx.canvas.height; }
+
+  population.dots[dotIndex].brain.Mutate();
+
+  population.dots[dotIndex].vector.x = 0;
+  population.dots[dotIndex].vector.y = 0;
+  population.dots[dotIndex].energy = 5;
+  population.dots[dotIndex].age = 0;
+  population.dots[dotIndex].children = 0;
+  population.dots[dotIndex].consumed = false;
+  population.dots[dotIndex].generation++;
+}
+
+function DoTheThings() {
+  centerX = ctx.canvas.width / 2;
+  centerY = ctx.canvas.height / 2;
+
+  let totalEnergy = 0;
+  population.data.mostChildren = 0;
+
+  for (let i = 0; i < population.dots.length; i++) {
+    totalEnergy += population.dots[i].energy;
+    population.dots[i].CheckDots(population);
+
+    population.dots[i].DoMovement(centerX, centerY);
+
+    if (population.dots[i].children > population.data.mostChildren) {
+      population.data.mostChildrenIndex = i;
+      population.data.mostChildren = population.dots[i].children;
+    }
+
+  }
+
+  if (population.data.mostChildrenIndex != population.data.previousMostChildrenIndex) {
+    population.data.previousMostChildrenIndex = population.data.mostChildrenIndex;
+    population.dots[population.data.mostChildrenIndex].brain.Save();
+
+  }
+
+  let yeetAndDelete = [];
+  for (
+    let dotIndex = 0; dotIndex < population.dots.length; dotIndex++
+  ) {
+    if (population.dots[dotIndex].CheckDeath() === true) {
+      if (population.dots[dotIndex].children >= population.data.mostChildren) {
+        population.dots[dotIndex].brain.Save();
+      }
+
+      let copyDot = {};
+
+      // got et
+      if (population.dots[dotIndex].consumed === true) {
+        copyDot = population.dots[dotIndex].nearestDot;
+        CopyDot(dotIndex, copyDot);
+      } else {
+        let copyIndex = Math.floor(Math.random() * population.dots.length);
+        copyDot = population.dots[copyIndex];
+        CopyDot(dotIndex, copyDot);
+        yeetAndDelete.push(dotIndex);
+      }
+
+    }
+  }
+
+  // population control
+  if (fps > 30) {
+    AddDots(1);
+  }
+
+  if (fps < 20 && population.dots.length > 100) {
+    for (let index = 0; index < yeetAndDelete.length; index++) {
+      population.dots.splice(yeetAndDelete[index], 1);
+    }
+  }
+
+}
+
+
+function blendColors(color1, color2) {
+  const blendedR = Math.floor((color1.r + color2.r) / 2);
+  const blendedG = Math.floor((color1.g + color2.g) / 2);
+  const blendedB = Math.floor((color1.b + color2.b) / 2);
+
+  return { r: blendedR, g: blendedG, b: blendedB };
+}
+function drawConnections(dots) {
+  for (let i = 0; i < dots.length; i++) {
+      const dot = dots[i];
+
+      // Check if the dot has found the nearest dot
+      if (dot.nearestDot) {
+          const dx = dot.x - dot.nearestDot.x;
+          const dy = dot.y - dot.nearestDot.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Blend the colors of the two dots
+          const blendedColor = blendColors(dot.color, dot.nearestDot.color);
+
+          // Line color based on the blended color of the dots
+          const opacity = 1 - (distance / 300); // Adjust opacity with distance
+          ctx.strokeStyle = `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, ${Math.max(0, opacity)})`;
+
+          ctx.lineWidth = 0.5;
+
+          ctx.beginPath();
+          ctx.moveTo(dot.x, dot.y);
+          ctx.lineTo(dot.nearestDot.x, dot.nearestDot.y);
+          ctx.stroke();
+      }
+
+      // Check if the dot has found an edible target (most energetic food)
+      if (dot.mostEnergeticFood) {
+          const dx = dot.x - dot.mostEnergeticFood.x;
+          const dy = dot.y - dot.mostEnergeticFood.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Blend the colors of the two dots
+          const blendedColor = blendColors(dot.color, dot.mostEnergeticFood.color);
+
+          // Line color based on the blended color of the dots
+          const opacity = 1 - (distance / 100); // Adjust opacity with distance
+          ctx.strokeStyle = `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, ${Math.max(0, opacity)})`;
+
+          ctx.lineWidth = 1.0; // Make this line slightly thicker
+
+          ctx.beginPath();
+          ctx.moveTo(dot.x, dot.y);
+          ctx.lineTo(dot.mostEnergeticFood.x, dot.mostEnergeticFood.y);
+          ctx.stroke();
+      }
+  }
+}
+
+
+
+function drawParticle(x, y, color, radius) {
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
+  gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
+  gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+
+function DrawGrid() {
+  ctx.canvas.width = window.innerWidth;
+  ctx.canvas.height = window.innerHeight;
+
+  DoTheThings();
+
+  // Clear the screen
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  // First, each dot finds its nearest and most energetic food
+  for (let i = 0; i < population.dots.length; i++) {
+      let dot = population.dots[i];
+      dot.CheckDots(population); // Find nearest and most energetic food dots
+  }
+
+  // Draw the connections to both nearest and most energetic dots
+  //drawConnections(population.dots);
+
+  // Draw each dot as a particle
+  for (let i = 0; i < population.dots.length; i++) {
+      let dot = population.dots[i];
+
+      // Calculate the radius based on energy
+      let radius = dot.calculateRadius();
+
+      // Draw the particle with a glow
+      drawParticle(dot.x, dot.y, dot.color, radius);
+  }
+
+  // Track and display frame rate and dot count
+  const now = performance.now();
+  while (times.length > 0 && times[0] <= now - 1000) {
+      times.shift();
+  }
+  times.push(now);
+  fps = times.length;
+
+  var networkDiv = document.getElementById("mynetwork");
+  if (networkDiv.style.display === "block") {
+      ctx.fillStyle = "white";
+      ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
+      drawBestDotHighlight(population.dots[population.data.mostChildrenIndex]);
+
+  }
+
+  //CircleDot(population.data.mostChildrenIndex, "green", 45);
+  
+  setTimeout(function () {
+      DrawGrid();
+  }, 1);
+}
+
+
+
+
+function PlacePixel(x, y, color, d) {
+  d = d * 0.5;
+  const index = (x + y * ctx.canvas.width) * 4;
+  pixels.data[index] = color.r - d;
+  pixels.data[index + 1] = color.g - d;
+  pixels.data[index + 2] = color.b - d;
+  pixels.data[index + 3] = 255;
+}
+
+
+AddDots(25);
+for (let i = 0; i < 120; i++) {
+  times.push(performance.now());
+}
+DrawGrid();
+
+    </script>
+</body>
+
+</html>
