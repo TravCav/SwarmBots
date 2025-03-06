@@ -135,7 +135,7 @@
       }
     </script>
 
-    <!-- ==================== BRAIN CLASS ==================== -->
+    <!-- ==================== BRAIN CLASS (with fix in Copy) ==================== -->
     <script>
       class Brain {
           constructor() {
@@ -165,28 +165,40 @@
               this.neurons[last - 7].label = 'down right';
           }
       
+          // *** FIXED METHOD ***
           Copy(otherBrain) {
-              for (let ni = 0; ni < this.neurons.length; ni++) {
-                  for (let nc = 0; nc < this.neurons[ni].connections.length; nc++) {
+              // 1) Expand this brain to match the size of the other
+              while (this.neurons.length < otherBrain.neurons.length) {
+                  this.AddHiddenNeuron();
+              }
+
+              // 2) Now safely copy
+              let minNeurons = Math.min(this.neurons.length, otherBrain.neurons.length);
+              for (let ni = 0; ni < minNeurons; ni++) {
+                  let minConn = Math.min(
+                      this.neurons[ni].connections.length,
+                      otherBrain.neurons[ni].connections.length
+                  );
+                  for (let nc = 0; nc < minConn; nc++) {
                       this.neurons[ni].connections[nc][1] = otherBrain.neurons[ni].connections[nc][1];
                   }
               }
           }
       
           Mutate() {
-              // Check if we should add a new hidden neuron
-              if (window.fps > 30 && population.dots.length > 500) {
-                  if (Math.random() < 0.01) { // 1% chance per mutation
-                      this.AddHiddenNeuron();
+              // Optionally add hidden neurons
+              if (fps > 20 && population.dots.length > 500) {
+                  if (Math.random() < 0.000001) {
+                       this.AddHiddenNeuron();
                   }
               }
-      
+
               // Regular mutation logic
               let neuronIndex = Math.floor(Math.random() * (this.neurons.length - this.inputCount)) + this.inputCount;
               let connectionIndex = Math.floor(Math.random() * this.neurons[neuronIndex].connections.length);
               this.neurons[neuronIndex].connections[connectionIndex][1] += (Math.random() * 100) - 50;
       
-              if (Math.random() < 0.1) {
+              if (Math.random() < 0.000001) {
                   this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
               }
           }
@@ -413,13 +425,11 @@
 
           // replaced with a quadtree approach
           CheckDots(possibleNeighbors) {
-              // possibleNeighbors is the array of points returned by the quadtree range query
               let nearestDistance = Infinity;
               this.nearestDot = null;
               this.mostEnergeticFood = null;
 
               for (let candidate of possibleNeighbors) {
-                  // candidate.dotRef is the actual Dot
                   const otherDot = candidate.dotRef;
                   if (this === otherDot) continue; // skip itself
 
@@ -643,7 +653,6 @@
       ctx.canvas.height = window.innerHeight;
       let centerX = ctx.canvas.width / 2;
       let centerY = ctx.canvas.height / 2;
-      //let pixels = ctx.createImageData(ctx.canvas.width, ctx.canvas.height);
 
       window.addEventListener('resize', function() {
           ctx.canvas.width = window.innerWidth;
@@ -802,10 +811,6 @@
       }
 
       function DrawGrid() {
-          // Remove the manual resize since we have the event listener
-          // ctx.canvas.width = window.innerWidth;
-          // ctx.canvas.height = window.innerHeight;
-
           DoTheThings();
 
           // Clear the screen
