@@ -1,852 +1,803 @@
+<!DOCTYPE html>
 <html>
 <head>
-    <style>
-        body {
-            background-color: #000000;
-            margin: 0px;
-            overflow: auto; /* Allow scrolling */
-        }
-        canvas, img {
-            image-rendering: optimizeSpeed;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: optimize-contrast;
-            -ms-interpolation-mode: nearest-neighbor;
-        }
-        #mynetwork {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 600px;
-            height: 600px;
-            border: 1px solid #000000;
-        }
-    </style>
-    <script type="text/javascript" src="vis-network.min.js"></script>
-
-    <script type="text/javascript">
-        var nodes = null;
-        var edges = null;
-        var network = null;
-
-        function draw() {
-            var cachedBrain = JSON.parse(localStorage.getItem("reconnect"));
-            if (cachedBrain != null) {
-                nodes = [];
-                const inputCount = 12;
-
-                let brainLen = cachedBrain.length;
-                for (let neuronIndex = 0; neuronIndex < brainLen; neuronIndex++) {
-                    let groupLabel = "";
-                    if (neuronIndex < inputCount) { groupLabel = "Input "; }
-                    if (neuronIndex >= inputCount && neuronIndex < brainLen - 8) { groupLabel = "Hidden "; }
-                    if (neuronIndex > brainLen - 8) { groupLabel = "Output "; }
-                    let neuronLabel = cachedBrain[neuronIndex].label;
-                    neuronLabel += " (" + groupLabel + ") [" + neuronIndex + "]"
-
-                    nodes.push({ 
-                        id: neuronIndex, 
-                        label: neuronLabel, 
-                        group: groupLabel, 
-                        font: { color: "white" } 
-                    });
-                }
-                edges = [];
-
-                for (let neuronIndex = inputCount; neuronIndex < cachedBrain.length; neuronIndex++) {
-                    for (let connectionIndex = 0; connectionIndex < cachedBrain[neuronIndex].connections.length; connectionIndex++) {
-                        if (cachedBrain[neuronIndex].connections[connectionIndex][1] > 0) {
-                            edges.push({ 
-                                from: connectionIndex, 
-                                to: neuronIndex, 
-                                value: Math.abs(cachedBrain[neuronIndex].connections[connectionIndex][1]), 
-                                arrows: "to" 
-                            });
-                        }
-                    }
-                }
-
-                // Instantiate our network object.
-                var container = document.getElementById("mynetwork");
-                var data = {
-                    nodes: nodes,
-                    edges: edges,
-                };
-                var options = {
-                    nodes: {
-                        shape: "dot",
-                        size: 6
-                    },
-                    edges: {
-                        smooth: false
-                    },
-                    physics: {
-                        forceAtlas2Based: {
-                            theta: 0.5,
-                            gravitationalConstant: -150,
-                            centralGravity: 0.03,
-                            springConstant: 0.04,
-                            springLength: 100,
-                            damping: 5,
-                            avoidOverlap: 0
-                        },
-                        maxVelocity: 1046,
-                        solver: "forceAtlas2Based",
-                        timestep: 0.25,
-                        stabilization: { iterations: 0 }
-                    }
-                };
-                network = new vis.Network(container, data, options);
-            }
-        }
-
-        function toggleVis() {
-            var networkDiv = document.getElementById("mynetwork");
-            if (networkDiv.style.display === "none") {
-                networkDiv.style.display = "block";
-                draw();
-            } else {
-                networkDiv.style.display = "none";
-            }
-        }
-    </script>
-
-    <title>Swarm Bots</title>
+  <meta charset="utf-8">
+  <title>Swarm Bots - Speed up mutation when Overpopulated</title>
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+    }
+    canvas, img {
+      image-rendering: optimizeSpeed;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: optimize-contrast;
+      -ms-interpolation-mode: nearest-neighbor;
+    }
+    #mynetwork {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 600px;
+      height: 600px;
+      border: 1px solid #000000;
+    }
+  </style>
+  <!-- vis-network (only required if you want the optional diagram) -->
+  <script src="vis-network.min.js"></script>
 </head>
+<body onload="drawNetwork()">
+<canvas id="gridCanvas" width="1000" height="1000" onclick="toggleVis()"></canvas>
+<div id="mynetwork" style="display:none"></div>
 
-<body onload="draw()">
-    <canvas id="gridCanvas" width="1000" height="1000" onclick="toggleVis()"></canvas>
-    <div id="mynetwork" style="display:none"></div>
+<script>
+/* ==================== 1) POPULATION-SCALED MUTATION HELPER ==================== */
+/**
+ * Returns a multiplier for mutation based on population size.
+ *
+ * Example:
+ *   0..200 dots   => scale from 1.0 up to 2.0
+ *   200..500 dots => scale from 2.0 up to 3.0
+ *   500+ dots     => clamp at 3.0
+ */
+function getPopulationMutationScale(popSize) {
+  if (popSize < 200) {
+    // From 1.0..2.0 as pop goes 0..200
+    return 1.0 + (popSize / 200);
+  } else if (popSize < 500) {
+    // From 2.0..3.0 as pop goes 200..500
+    const fraction = (popSize - 200) / 300; // 0..1
+    return 2.0 + (1.0 * fraction);         // => 2..3
+  } else {
+    // 500+ => Overpopulation => scale 3.0
+    return 3.0;
+  }
+}
 
-    <!-- ==================== NEURON CLASS ==================== -->
-    <script>
-      class neuron {
-          constructor(connectionCount) {
-              // +1 for bias
-              connectionCount += 1;
-              this.label = "";
-              this.type = "";
-              this.value = 0;
-              this.connections = [];
-              for (let i = 0; i < connectionCount; i++) {
-                  this.connections.push([i, 0]);
-              }
-          }
+/* ==================== 2) NEURON CLASS ==================== */
+class neuron {
+  constructor(connectionCount) {
+    // +1 for bias
+    connectionCount += 1;
+    this.label = "";
+    this.value = 0;
+    this.connections = [];
+    for (let i = 0; i < connectionCount; i++) {
+      // each element is [sourceNeuronIndex, weight]
+      this.connections.push([i, 0]);
+    }
+  }
+}
+
+/* ==================== 3) BRAIN CLASS (Pop-Scaled Mutation) ==================== */
+class Brain {
+  constructor() {
+    this.inputCount = 12;
+    this.hiddenCount = 1;  // Start with 1 hidden
+    this.outputCount = 2;  // 2 outputs: moveX, moveY
+
+    const total = this.inputCount + this.hiddenCount + this.outputCount;
+    this.neurons = new Array(total);
+
+    // Initialize
+    for (let i = 0; i < total; i++) {
+      this.neurons[i] = new neuron(total);
+    }
+
+    // Label outputs
+    const last = total - 1;
+    this.neurons[last].label = "moveY";
+    this.neurons[last - 1].label = "moveX";
+  }
+
+  Copy(otherBrain) {
+    // If smaller, expand ourselves
+    while (this.neurons.length < otherBrain.neurons.length) {
+      this.AddHiddenNeuron();
+    }
+    const minLen = Math.min(this.neurons.length, otherBrain.neurons.length);
+    for (let ni = 0; ni < minLen; ni++) {
+      const minConn = Math.min(
+        this.neurons[ni].connections.length,
+        otherBrain.neurons[ni].connections.length
+      );
+      for (let nc = 0; nc < minConn; nc++) {
+        this.neurons[ni].connections[nc][1] =
+          otherBrain.neurons[ni].connections[nc][1];
       }
-    </script>
+    }
+  }
 
-    <!-- ==================== BRAIN CLASS (with fix in Copy) ==================== -->
-    <script>
-      class Brain {
-          constructor() {
-              // Start with just 1 hidden neuron
-              this.inputCount = 12;
-              this.hiddenCount = 1;
-              this.outputCount = 8;
-              
-              // total neurons
-              const totalNeurons = this.inputCount + this.hiddenCount + this.outputCount;
-              this.neurons = new Array(totalNeurons);
-      
-              // Fill neurons
-              for (let ni = 0; ni < totalNeurons; ni++) {
-                  this.neurons[ni] = new neuron(totalNeurons);
-              }
-              
-              // Label outputs
-              const last = totalNeurons - 1;
-              this.neurons[last - 0].label = 'up left';
-              this.neurons[last - 1].label = 'up';
-              this.neurons[last - 2].label = 'up right';
-              this.neurons[last - 3].label = 'left';
-              this.neurons[last - 4].label = 'right';
-              this.neurons[last - 5].label = 'down left';
-              this.neurons[last - 6].label = 'down';
-              this.neurons[last - 7].label = 'down right';
-          }
-      
-          // *** FIXED METHOD ***
-          Copy(otherBrain) {
-              // 1) Expand this brain to match the size of the other
-              while (this.neurons.length < otherBrain.neurons.length) {
-                  this.AddHiddenNeuron();
-              }
+  /**
+   * Mutate:
+   *   - Increase chance to add hidden neuron if population is big
+   *   - Increase amplitude for older->newer hidden + pop scale
+   */
+  Mutate(popSize) {
+    // 1) compute pop scale
+    const popScale = getPopulationMutationScale(popSize);
 
-              // 2) Now safely copy
-              let minNeurons = Math.min(this.neurons.length, otherBrain.neurons.length);
-              for (let ni = 0; ni < minNeurons; ni++) {
-                  let minConn = Math.min(
-                      this.neurons[ni].connections.length,
-                      otherBrain.neurons[ni].connections.length
-                  );
-                  for (let nc = 0; nc < minConn; nc++) {
-                      this.neurons[ni].connections[nc][1] = otherBrain.neurons[ni].connections[nc][1];
-                  }
-              }
-          }
-      
-          Mutate() {
-              // Optionally add hidden neurons
-              if (fps > 20 && population.dots.length > 500) {
-                  if (Math.random() < 0.000001) {
-                       this.AddHiddenNeuron();
-                  }
-              }
+    // 2) base add-neuron prob is 1e-6, scaled by pop
+    const baseProb = 1e-6;
+    const actualAddNeuronProb = baseProb * popScale;
+    if (Math.random() < actualAddNeuronProb) {
+      this.AddHiddenNeuron();
+    }
 
-              // Regular mutation logic
-              let neuronIndex = Math.floor(Math.random() * (this.neurons.length - this.inputCount)) + this.inputCount;
-              let connectionIndex = Math.floor(Math.random() * this.neurons[neuronIndex].connections.length);
-              this.neurons[neuronIndex].connections[connectionIndex][1] += (Math.random() * 100) - 50;
-      
-              if (Math.random() < 0.000001) {
-                  this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
-              }
-          }
-      
-          AddHiddenNeuron() {
-              const oldLength = this.neurons.length;
-              const newLength = oldLength + 1;
-              
-              // Create new neurons array with expanded size
-              const newNeurons = new Array(newLength);
-              
-              // Copy and expand existing neurons
-              for (let i = 0; i < oldLength; i++) {
-                  const oldNeuron = this.neurons[i];
-                  const newNeuron = new neuron(newLength);
-                  
-                  newNeuron.label = oldNeuron.label;
-                  newNeuron.type = oldNeuron.type;
-                  newNeuron.value = oldNeuron.value;
-                  
-                  // Copy existing connections
-                  for (let j = 0; j < oldNeuron.connections.length; j++) {
-                      newNeuron.connections[j] = [...oldNeuron.connections[j]];
-                  }
-                  
-                  newNeurons[i] = newNeuron;
-              }
-              
-              // Add new hidden neuron
-              const newHiddenNeuron = new neuron(newLength);
-              newHiddenNeuron.label = `Hidden ${this.hiddenCount + 1}`;
-              newNeurons[oldLength] = newHiddenNeuron;
-              
-              this.hiddenCount++;
-              this.neurons = newNeurons;
-          }
-      
-          Processneurons() {
-              for (let ni = this.inputCount + 1; ni < this.neurons.length; ni++) {
-                  let inputValues = 0;
-                  let connectionCount = this.neurons[ni].connections.length;
-                  for (let ci = 0; ci < connectionCount - 1; ci++) {
-                      const inputTimesWeight = 
-                          this.neurons[this.neurons[ni].connections[ci][0]].value * 
-                          this.neurons[ni].connections[ci][1];
-                      inputValues += inputTimesWeight;
-      
-                      // if there's a weird mismatch, do something
-                      if (inputTimesWeight === 0 && 
-                          ci > this.inputCount && 
-                          this.neurons[ni].connections[ci][1] != 0) {
-                          this.neurons[ni].connections[ci][1] = 0;
-                          this.Mutate();
-                      }
-                  }
-                  // bias
-                  inputValues += this.neurons[ni].connections[connectionCount - 1][1];
-                  // activation
-                  this.neurons[ni].value = Math.tanh(inputValues);
-              }
-          }
-      
-          Restore() {
-              var oldBrain = JSON.parse(localStorage.getItem("reconnect"));
-              if (oldBrain != null) {
-                  if (this.neurons.length === oldBrain.length) {
-                      for (let ni = 0; ni < this.neurons.length; ni++) {
-                          if (this.neurons[ni].connections.length === oldBrain[ni].connections.length) {
-                              this.neurons[ni].connections = oldBrain[ni].connections;
-                          }
-                      }
-                  }
-              }
-          }
-      
-          Save() {
-              var dotString = JSON.stringify(this.neurons);
-              localStorage.setItem("reconnect", dotString);
-              var networkDiv = document.getElementById("mynetwork");
-              if (networkDiv.style.display === "block") {
-                  draw();
-              }
-          }
+    // 3) pick random hidden/output neuron
+    const neuronIndex = Math.floor(
+      Math.random() * (this.neurons.length - this.inputCount)
+    ) + this.inputCount;
+
+    // 4) pick random connection
+    const connectionIndex = Math.floor(
+      Math.random() * this.neurons[neuronIndex].connections.length
+    );
+
+    // 5) older->newer hidden scaling
+    let amplitude = 1.0; // default
+    const hiddenStart = this.inputCount;
+    const hiddenEnd = this.neurons.length - this.outputCount;
+    if (neuronIndex >= hiddenStart && neuronIndex < hiddenEnd) {
+      const hiddenIndex = neuronIndex - hiddenStart;
+      const hiddenSpan = Math.max(1, hiddenEnd - hiddenStart - 1);
+      const fraction = hiddenIndex / hiddenSpan;
+      // older => fraction=0 => amplitude=0.5
+      // newest => fraction=1 => amplitude=1.0
+      amplitude = 0.5 + fraction * 0.5;
+    }
+
+    // 6) multiply amplitude by popScale
+    amplitude *= popScale;
+
+    // 7) random weight change
+    const delta = (Math.random() * 2 - 1) * amplitude;
+    this.neurons[neuronIndex].connections[connectionIndex][1] += delta;
+
+    // 8) rare chance to reset
+    if (Math.random() < 1e-7) {
+      this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
+    }
+  }
+
+  AddHiddenNeuron() {
+    const oldLen = this.neurons.length;
+    const newLen = oldLen + 1;
+
+    let newNeurons = new Array(newLen);
+    for (let i = 0; i < oldLen; i++) {
+      const oldN = this.neurons[i];
+      const newN = new neuron(newLen);
+
+      newN.label = oldN.label;
+      newN.value = oldN.value;
+
+      // copy old connections
+      for (let j = 0; j < oldN.connections.length; j++) {
+        newN.connections[j] = [...oldN.connections[j]];
       }
-    </script>
+      newNeurons[i] = newN;
+    }
 
-    <!-- ==================== QUADTREE CLASS ==================== -->
-    <script>
-      class Quadtree {
-          constructor(boundary, capacity) {
-              // boundary is a rectangle {x, y, w, h}
-              this.boundary = boundary;
-              this.capacity = capacity;
-              this.points = [];
-              this.divided = false; // keep track if we subdivided
-          }
+    // new hidden
+    const hiddenN = new neuron(newLen);
+    hiddenN.label = `Hidden ${this.hiddenCount + 1}`;
+    newNeurons[oldLen] = hiddenN;
 
-          subdivide() {
-              let x = this.boundary.x;
-              let y = this.boundary.y;
-              let w = this.boundary.w / 2;
-              let h = this.boundary.h / 2;
+    this.hiddenCount++;
+    this.neurons = newNeurons;
+  }
 
-              // Create four children (topleft, topRight, bottomLeft, bottomRight)
-              let topLeftBoundary = {x: x,       y: y,       w: w, h: h};
-              this.topLeft = new Quadtree(topLeftBoundary, this.capacity);
-
-              let topRightBoundary = {x: x + w,  y: y,       w: w, h: h};
-              this.topRight = new Quadtree(topRightBoundary, this.capacity);
-
-              let bottomLeftBoundary = {x: x,    y: y + h,   w: w, h: h};
-              this.bottomLeft = new Quadtree(bottomLeftBoundary, this.capacity);
-
-              let bottomRightBoundary = {x: x + w, y: y + h, w: w, h: h};
-              this.bottomRight = new Quadtree(bottomRightBoundary, this.capacity);
-
-              this.divided = true;
-          }
-
-          // checks if a point is within boundary
-          contains(point) {
-              return (
-                  point.x >= this.boundary.x &&
-                  point.x <  this.boundary.x + this.boundary.w &&
-                  point.y >= this.boundary.y &&
-                  point.y <  this.boundary.y + this.boundary.h
-              );
-          }
-
-          insert(point) {
-              if(!this.contains(point)) {
-                  return false;
-              }
-
-              if(this.points.length < this.capacity) {
-                  this.points.push(point);
-                  return true;
-              } else {
-                  if(!this.divided) {
-                      this.subdivide();
-                  }
-                  if(this.topLeft.insert(point)) return true;
-                  if(this.topRight.insert(point)) return true;
-                  if(this.bottomLeft.insert(point)) return true;
-                  if(this.bottomRight.insert(point)) return true;
-              }
-          }
-
-          // range is a rectangle {x, y, w, h}
-          query(range, found) {
-              if(!found) {
-                  found = [];
-              }
-              // if we don't intersect, return
-              if(!this.intersects(range, this.boundary)) {
-                  return found;
-              } else {
-                  // check if points are within
-                  for(let p of this.points) {
-                      if(this.containsPoint(range, p)) {
-                          found.push(p);
-                      }
-                  }
-                  if(this.divided) {
-                      this.topLeft.query(range, found);
-                      this.topRight.query(range, found);
-                      this.bottomLeft.query(range, found);
-                      this.bottomRight.query(range, found);
-                  }
-              }
-              return found;
-          }
-
-          // helper to see if two rectangles intersect
-          intersects(r1, r2) {
-              return !(
-                  r2.x > r1.x + r1.w ||
-                  r2.x + r2.w < r1.x ||
-                  r2.y > r1.y + r1.h ||
-                  r2.y + r2.h < r1.y
-              );
-          }
-
-          // check if a point is inside a rectangle
-          containsPoint(rect, p) {
-              return (
-                  p.x >= rect.x &&
-                  p.x <= rect.x + rect.w &&
-                  p.y >= rect.y &&
-                  p.y <= rect.y + rect.h
-              );
-          }
+  Processneurons() {
+    // from first hidden to end
+    for (let ni = this.inputCount; ni < this.neurons.length; ni++) {
+      let sum = 0;
+      const connCount = this.neurons[ni].connections.length;
+      for (let ci = 0; ci < connCount - 1; ci++) {
+        const srcIndex = this.neurons[ni].connections[ci][0];
+        const weight = this.neurons[ni].connections[ci][1];
+        sum += this.neurons[srcIndex].value * weight;
       }
-    </script>
+      // bias
+      sum += this.neurons[ni].connections[connCount - 1][1];
+      this.neurons[ni].value = Math.tanh(sum);
+    }
+  }
 
-    <!-- ==================== DOT CLASS ==================== -->
-    <script>
-      class Dot {
-          constructor() {
-              this.vector = { x: 0, y: 0 };
-              this.color = { r: 127, g: 127, b: 127 };
-              this.age = 0;
-              this.energy = 10;
-              this.tickRate = 0.02;
-              this.nearestDot = null;
-              this.mostEnergeticFood = null;
-              this.x = Math.random() * ctx.canvas.width;
-              this.y = Math.random() * ctx.canvas.height;
-              this.brain = new Brain();
-              this.consumed = false;
-              this.children = 0;
-              this.generation = 0;
-              this.nearbyDistance = 50;
-          }
+  Restore() {
+    const saved = JSON.parse(localStorage.getItem("reconnect"));
+    if (!saved) return;
 
-          // radius based on energy, e.g. log scale
-          calculateRadius() {
-              const minSize = 1;
-              const maxSize = 5;
-              const logEnergy = Math.log(this.energy + 1);
-              const scale = (maxSize - minSize) / Math.log(100 + 1);
-              return Math.max(minSize, Math.min(maxSize, minSize + logEnergy * scale));
-          }
-
-          // replaced with a quadtree approach
-          CheckDots(possibleNeighbors) {
-              let nearestDistance = Infinity;
-              this.nearestDot = null;
-              this.mostEnergeticFood = null;
-
-              for (let candidate of possibleNeighbors) {
-                  const otherDot = candidate.dotRef;
-                  if (this === otherDot) continue; // skip itself
-
-                  const distance = this.GetDistance(otherDot);
-                  // track the nearest dot
-                  if(distance < nearestDistance) {
-                      nearestDistance = distance;
-                      this.nearestDot = otherDot;
-                  }
-                  // track the largest edible dot
-                  if (this.energy > otherDot.energy) {
-                      if (!this.mostEnergeticFood || otherDot.energy > this.mostEnergeticFood.energy) {
-                          this.mostEnergeticFood = otherDot;
-                      }
-                  }
-              }
-          }
-
-          CheckDeath() {
-              // Dead if consumed, out of energy, or out of bounds
-              return (this.Consumed() || this.energy < 0 || this.WallDeath());
-          }
-
-          CopyColor(dotToCopy) {
-              do {
-                  this.color.r = this.ColorBoundCheck(dotToCopy.color.r + Math.floor((Math.random() * 32) - 16));
-                  this.color.g = this.ColorBoundCheck(dotToCopy.color.g + Math.floor((Math.random() * 32) - 16));
-                  this.color.b = this.ColorBoundCheck(dotToCopy.color.b + Math.floor((Math.random() * 32) - 16));
-              } while (this.color.r + this.color.g + this.color.b < 127);
-          }
-
-          ColorBoundCheck(val) {
-              if (val > 255) return 255;
-              if (val < 0) return 0;
-              return val;
-          }
-
-          Consumed() {
-              if (this.nearestDot !== null) {
-                  const dx = this.x - this.nearestDot.x;
-                  const dy = this.y - this.nearestDot.y;
-                  const distance = Math.sqrt(dx * dx + dy * dy);
-                  if (distance < 1) {
-                      if (this.energy < this.nearestDot.energy) {
-                          this.energy = -2;
-                          this.consumed = true;
-                          return true;
-                      } else {
-                          this.children++;
-                          this.energy += this.nearestDot.energy;
-                          if (this.energy > 100) {
-                              this.energy = 100;
-                          }
-                          return false;
-                      }
-                  }
-              }
-              return false;
-          }
-
-          DifferentColor(otherColor) {
-              return (
-                  this.color.r !== otherColor.r ||
-                  this.color.g !== otherColor.g ||
-                  this.color.b !== otherColor.b
-              );
-          }
-
-          DoMovement(cWidth, cHeight) {
-              this.ThinkAboutStuff(cWidth, cHeight);
-              let brainLen = this.brain.neurons.length - 1;
-
-              // Weighted directional control using last 8 outputs
-              this.vector.x += (
-                  (this.brain.neurons[brainLen - 4].value + 
-                   this.brain.neurons[brainLen - 1].value + 
-                   this.brain.neurons[brainLen].value)
-                  - 
-                  (this.brain.neurons[brainLen - 7].value + 
-                   this.brain.neurons[brainLen - 6].value + 
-                   this.brain.neurons[brainLen - 5].value)
-              ) / 3;
-
-              this.vector.y += (
-                  (this.brain.neurons[brainLen - 5].value + 
-                   this.brain.neurons[brainLen - 3].value + 
-                   this.brain.neurons[brainLen].value)
-                  - 
-                  (this.brain.neurons[brainLen - 7].value + 
-                   this.brain.neurons[brainLen - 4].value + 
-                   this.brain.neurons[brainLen - 2].value)
-              ) / 3;
-
-              let vectorModifier = 0.1;
-              this.x += (this.vector.x * vectorModifier);
-              this.y += (this.vector.y * vectorModifier);
-
-              const lastVector = Math.sqrt(this.vector.x * this.vector.x + this.vector.y * this.vector.y) / 1000;
-              this.energy -= this.tickRate + lastVector;
-              this.age++;
-          }
-
-          GetDistance(otherDot) {
-              const dx = this.x - otherDot.x;
-              const dy = this.y - otherDot.y;
-              return Math.sqrt(dx * dx + dy * dy);
-          }
-
-          GetInputs(cWidth, cHeight) {
-              // 12 input neurons total
-              // 0: age
-              this.brain.neurons[0] = {
-                  value: this.age,
-                  label: "age",
-                  connections: []
-              };
-              // 1: energy
-              this.brain.neurons[1] = {
-                  value: this.energy,
-                  label: "energy",
-                  connections: []
-              };
-              // 2: vector.x
-              this.brain.neurons[2] = {
-                  value: this.vector.x,
-                  label: "x vector",
-                  connections: []
-              };
-              // 3: vector.y
-              this.brain.neurons[3] = {
-                  value: this.vector.y,
-                  label: "y vector",
-                  connections: []
-              };
-
-              // If the nearest dot is within visibility, fill in data
-              if (this.nearestDot && this.GetDistance(this.nearestDot) < this.nearbyDistance) {
-                  this.brain.neurons[4] = {
-                      value: this.nearestDot.x - this.x,
-                      label: "nearest dot x distance",
-                      connections: []
-                  };
-                  this.brain.neurons[5] = {
-                      value: this.nearestDot.y - this.y,
-                      label: "nearest dot y distance",
-                      connections: []
-                  };
-                  this.brain.neurons[6] = {
-                      value: this.nearestDot.energy - this.energy,
-                      label: "nearest dot energy",
-                      connections: []
-                  };
-                  this.brain.neurons[7] = {
-                      value: Math.abs(this.color.r - this.nearestDot.color.r),
-                      label: "nearest dot r diff",
-                      connections: []
-                  };
-                  this.brain.neurons[8] = {
-                      value: Math.abs(this.color.g - this.nearestDot.color.g),
-                      label: "nearest dot g diff",
-                      connections: []
-                  };
-                  this.brain.neurons[9] = {
-                      value: Math.abs(this.color.b - this.nearestDot.color.b),
-                      label: "nearest dot b diff",
-                      connections: []
-                  };
-              } else {
-                  // can't see anything
-                  this.brain.neurons[4] = { value: 0, label: "nearest dot x distance", connections: [] };
-                  this.brain.neurons[5] = { value: 0, label: "nearest dot y distance", connections: [] };
-                  this.brain.neurons[6] = { value: 0, label: "nearest dot energy",      connections: [] };
-                  this.brain.neurons[7] = { value: 0, label: "nearest dot r diff",      connections: [] };
-                  this.brain.neurons[8] = { value: 0, label: "nearest dot g diff",      connections: [] };
-                  this.brain.neurons[9] = { value: 0, label: "nearest dot b diff",      connections: [] };
-              }
-
-              // If there's a big edible dot
-              if (this.mostEnergeticFood) {
-                  this.brain.neurons[10] = {
-                      value: this.mostEnergeticFood.x - this.x,
-                      label: "best food x",
-                      connections: []
-                  };
-                  this.brain.neurons[11] = {
-                      value: this.mostEnergeticFood.y - this.y,
-                      label: "best food y",
-                      connections: []
-                  };
-              } else {
-                  this.brain.neurons[10] = { value: 0, label: "best food x", connections: [] };
-                  this.brain.neurons[11] = { value: 0, label: "best food y", connections: [] };
-              }
-          }
-
-          ThinkAboutStuff(cWidth, cHeight) {
-              this.GetInputs(cWidth, cHeight);
-              this.brain.Processneurons();
-          }
-
-          WallDeath() {
-              return (
-                  this.x > ctx.canvas.width ||
-                  this.x < 1 ||
-                  this.y > ctx.canvas.height ||
-                  this.y < 1
-              );
-          }
+    if (this.neurons.length === saved.length) {
+      for (let i = 0; i < this.neurons.length; i++) {
+        if (
+          this.neurons[i].connections.length === saved[i].connections.length
+        ) {
+          this.neurons[i].connections = saved[i].connections;
+        }
       }
-    </script>
+    }
+  }
 
-    <!-- ==================== MAIN SCRIPT ==================== -->
-    <script>
-      let cvs = document.getElementById("gridCanvas");
-      let ctx = cvs.getContext("2d");
+  Save() {
+    localStorage.setItem("reconnect", JSON.stringify(this.neurons));
+    const netDiv = document.getElementById("mynetwork");
+    if (netDiv && netDiv.style.display === "block") {
+      drawNetwork();
+    }
+  }
+}
 
-      const times = [];
-      let fps;
+/* ==================== 4) DOT CLASS ==================== */
+class Dot {
+  constructor() {
+    this.x = Math.random() * window.innerWidth;
+    this.y = Math.random() * window.innerHeight;
+    this.vector = { x: 0, y: 0 };
+    this.color = { r: 127, g: 127, b: 127 };
+    this.energy = 10;
+    this.tickRate = 0.02;
+    this.children = 0;
+    this.generation = 0;
+    this.consumed = false;
 
-      ctx.canvas.width = window.innerWidth;
-      ctx.canvas.height = window.innerHeight;
-      let centerX = ctx.canvas.width / 2;
-      let centerY = ctx.canvas.height / 2;
+    // separate prey/predator
+    this.nearestPrey = null;
+    this.nearestPredator = null;
 
-      window.addEventListener('resize', function() {
-          ctx.canvas.width = window.innerWidth;
-          ctx.canvas.height = window.innerHeight;
-      });
+    this.nearbyDistance = 50;
 
-      let population = {
-          data: {
-              mostChildren: 0,
-              mostChildrenIndex: 0,
-              previousMostChildrenIndex: 0
-          },
-          dots: []
-      };
+    // create brain
+    this.brain = new Brain();
+    this.brain.Restore();
+    // mutate with pop-based scale
+    this.brain.Mutate(population.dots.length);
 
-      function AddDots(dotsToAdd) {
-          for (let i = 0; i < dotsToAdd; i++) {
-              population.dots.push(new Dot());
-              population.dots[i].brain.Restore();
-              population.dots[i].brain.Mutate();
-          }
+    // Label the 12 inputs once
+    this.brain.neurons[0].label = "Energy";
+    this.brain.neurons[1].label = "Velocity X";
+    this.brain.neurons[2].label = "Velocity Y";
+    this.brain.neurons[3].label = "Dist Left";
+    this.brain.neurons[4].label = "Dist Right";
+    this.brain.neurons[5].label = "Dist Top";
+    this.brain.neurons[6].label = "Dist Bottom";
+    this.brain.neurons[7].label = "dx Prey";
+    this.brain.neurons[8].label = "dy Prey";
+    this.brain.neurons[9].label = "dx Predator";
+    this.brain.neurons[10].label = "dy Predator";
+    this.brain.neurons[11].label = "Predator Energy Diff";
+  }
+
+  calculateRadius() {
+    const minSize = 1;
+    const maxSize = 5;
+    const logE = Math.log(this.energy + 1);
+    const scale = (maxSize - minSize) / Math.log(100 + 1);
+    return Math.max(minSize, Math.min(maxSize, minSize + logE * scale));
+  }
+
+  CheckDots(neighbors) {
+    let preyDist = Infinity;
+    let predDist = Infinity;
+    this.nearestPrey = null;
+    this.nearestPredator = null;
+
+    for (let entry of neighbors) {
+      const other = entry.dotRef;
+      if (other === this) continue;
+
+      const dx = this.x - other.x;
+      const dy = this.y - other.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (other.energy < this.energy) {
+        // potential prey
+        if (dist < preyDist) {
+          preyDist = dist;
+          this.nearestPrey = other;
+        }
+      } else if (other.energy > this.energy) {
+        // potential predator
+        if (dist < predDist) {
+          predDist = dist;
+          this.nearestPredator = other;
+        }
       }
+    }
+  }
 
-      function CopyDot(dotIndex, copyDot) {
-          population.dots[dotIndex].brain.Copy(copyDot.brain);
-          population.dots[dotIndex].CopyColor(copyDot);
+  CheckDeath() {
+    return this.Consumed() || this.energy < 0 || this.WallDeath();
+  }
 
-          let r = (Math.random() * 50);
-          const a = Math.random() * 6.28;
-          population.dots[dotIndex].x = Math.floor(r * Math.cos(a) + copyDot.x);
-          population.dots[dotIndex].y = Math.floor(r * Math.sin(a) + copyDot.y);
-
-          // clamp
-          if (population.dots[dotIndex].x < 0) { population.dots[dotIndex].x = 0; }
-          if (population.dots[dotIndex].x > ctx.canvas.width) { population.dots[dotIndex].x = ctx.canvas.width; }
-          if (population.dots[dotIndex].y < 0) { population.dots[dotIndex].y = 0; }
-          if (population.dots[dotIndex].y > ctx.canvas.height) { population.dots[dotIndex].y = ctx.canvas.height; }
-
-          population.dots[dotIndex].brain.Mutate();
-          population.dots[dotIndex].vector.x = 0;
-          population.dots[dotIndex].vector.y = 0;
-          population.dots[dotIndex].energy = 5;
-          population.dots[dotIndex].age = 0;
-          population.dots[dotIndex].children = 0;
-          population.dots[dotIndex].consumed = false;
-          population.dots[dotIndex].generation++;
+  Consumed() {
+    // predator on top => I'm consumed
+    if (this.nearestPredator) {
+      const dx = this.x - this.nearestPredator.x;
+      const dy = this.y - this.nearestPredator.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 1) {
+        if (this.energy < this.nearestPredator.energy) {
+          this.energy = -1;
+          this.consumed = true;
+          return true;
+        }
       }
-
-      function drawBestDotHighlight(dot) {
-          if (!dot) return;
-
-          const highlightRadius = dot.calculateRadius() + 4;
-          const pulseAmount = Math.sin(performance.now() / 200) * 0.5 + 0.5;
-
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + pulseAmount * 0.7})`;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(dot.x, dot.y, highlightRadius, 0, Math.PI * 2);
-          ctx.stroke();
-
-          ctx.fillStyle = 'white';
-          ctx.font = '12px Arial';
-          ctx.fillText(`Best: ${dot.children} children`, dot.x + highlightRadius + 5, dot.y);
+    }
+    // I'm on top of smaller => I eat them
+    if (this.nearestPrey) {
+      const dx = this.x - this.nearestPrey.x;
+      const dy = this.y - this.nearestPrey.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 1) {
+        this.energy += this.nearestPrey.energy;
+        this.children++;
+        if (this.energy > 100) this.energy = 100;
       }
+    }
+    return false;
+  }
 
-      function DoTheThings() {
-          centerX = ctx.canvas.width / 2;
-          centerY = ctx.canvas.height / 2;
+  CopyColor(dotToCopy) {
+    do {
+      this.color.r = this.boundValue(
+        dotToCopy.color.r + Math.floor(Math.random() * 32 - 16)
+      );
+      this.color.g = this.boundValue(
+        dotToCopy.color.g + Math.floor(Math.random() * 32 - 16)
+      );
+      this.color.b = this.boundValue(
+        dotToCopy.color.b + Math.floor(Math.random() * 32 - 16)
+      );
+    } while (this.color.r + this.color.g + this.color.b < 127);
+  }
+  boundValue(val) {
+    return Math.max(0, Math.min(255, val));
+  }
 
-          // 1) Build Quadtree for dots
-          let boundary = {
-              x: 0,
-              y: 0,
-              w: ctx.canvas.width,
-              h: ctx.canvas.height
-          };
-          let quadtree = new Quadtree(boundary, 8);
+  WallDeath() {
+    return (
+      this.x > ctx.canvas.width ||
+      this.x < 1 ||
+      this.y > ctx.canvas.height ||
+      this.y < 1
+    );
+  }
 
-          // Insert all dots into quadtree
-          for (let i = 0; i < population.dots.length; i++) {
-              let d = population.dots[i];
-              quadtree.insert({ x: d.x, y: d.y, dotRef: d });
-          }
+  DoMovement(cWidth, cHeight) {
+    this.GetInputs(cWidth, cHeight);
+    this.brain.Processneurons();
 
-          population.data.mostChildren = 0;
+    // last 2 => moveX, moveY
+    const moveX = this.brain.neurons[this.brain.neurons.length - 2].value;
+    const moveY = this.brain.neurons[this.brain.neurons.length - 1].value;
 
-          // 2) For each dot, do a range query to find neighbors
-          for (let i = 0; i < population.dots.length; i++) {
-              let dot = population.dots[i];
+    const speedFactor = 0.1;
+    this.vector.x += moveX * speedFactor;
+    this.vector.y += moveY * speedFactor;
 
-              // bounding box for neighbor search
-              let searchBoundary = {
-                  x: dot.x - dot.nearbyDistance,
-                  y: dot.y - dot.nearbyDistance,
-                  w: dot.nearbyDistance * 2,
-                  h: dot.nearbyDistance * 2
-              };
+    this.x += this.vector.x;
+    this.y += this.vector.y;
 
-              let neighbors = quadtree.query(searchBoundary);
-              dot.CheckDots(neighbors);
+    // energy drain
+    const motionCost = Math.sqrt(this.vector.x**2 + this.vector.y**2) / 1000;
+    this.energy -= this.tickRate + motionCost;
+  }
 
-              dot.DoMovement(centerX, centerY);
+  GetInputs(cWidth, cHeight) {
+    this.brain.neurons[0].value = this.energy;
+    this.brain.neurons[1].value = this.vector.x;
+    this.brain.neurons[2].value = this.vector.y;
+    this.brain.neurons[3].value = this.x;              
+    this.brain.neurons[4].value = cWidth - this.x;     
+    this.brain.neurons[5].value = this.y;              
+    this.brain.neurons[6].value = cHeight - this.y;    
 
-              if (dot.children > population.data.mostChildren) {
-                  population.data.mostChildrenIndex = i;
-                  population.data.mostChildren = dot.children;
-              }
-          }
+    // prey coords
+    if (this.nearestPrey) {
+      this.brain.neurons[7].value = this.nearestPrey.x - this.x;
+      this.brain.neurons[8].value = this.nearestPrey.y - this.y;
+    } else {
+      this.brain.neurons[7].value = 0;
+      this.brain.neurons[8].value = 0;
+    }
 
-          if (population.data.mostChildrenIndex != population.data.previousMostChildrenIndex) {
-              population.data.previousMostChildrenIndex = population.data.mostChildrenIndex;
-              population.dots[population.data.mostChildrenIndex].brain.Save();
-          }
+    // predator coords
+    if (this.nearestPredator) {
+      this.brain.neurons[9].value = this.nearestPredator.x - this.x;
+      this.brain.neurons[10].value = this.nearestPredator.y - this.y;
+      this.brain.neurons[11].value = this.nearestPredator.energy - this.energy;
+    } else {
+      this.brain.neurons[9].value = 0;
+      this.brain.neurons[10].value = 0;
+      this.brain.neurons[11].value = 0;
+    }
+  }
+}
 
-          // 3) check for death
-          let yeetAndDelete = [];
-          for (let i = 0; i < population.dots.length; i++) {
-              if (population.dots[i].CheckDeath()) {
-                  if (population.dots[i].children >= population.data.mostChildren) {
-                      population.dots[i].brain.Save();
-                  }
+/* ==================== 5) QUADTREE ==================== */
+class Quadtree {
+  constructor(boundary, capacity) {
+    this.boundary = boundary; // {x,y,w,h}
+    this.capacity = capacity;
+    this.points = [];
+    this.divided = false;
+  }
 
-                  // if consumed, copy nearest dot
-                  if (population.dots[i].consumed === true) {
-                      CopyDot(i, population.dots[i].nearestDot);
-                  } else {
-                      let copyIndex = Math.floor(Math.random() * population.dots.length);
-                      CopyDot(i, population.dots[copyIndex]);
-                      yeetAndDelete.push(i);
-                  }
-              }
-          }
+  subdivide() {
+    const x = this.boundary.x;
+    const y = this.boundary.y;
+    const w = this.boundary.w / 2;
+    const h = this.boundary.h / 2;
 
-          // population control
-          if (fps > 30) {
-              AddDots(1);
-          }
+    this.topLeft = new Quadtree({ x,         y,         w, h }, this.capacity);
+    this.topRight = new Quadtree({ x: x + w, y,         w, h }, this.capacity);
+    this.bottomLeft = new Quadtree({ x,      y: y + h,  w, h }, this.capacity);
+    this.bottomRight = new Quadtree({ x: x + w, y: y + h, w, h }, this.capacity);
 
-          // If FPS too low, remove some dots
-          if (fps < 20 && population.dots.length > 100) {
-              for (let index of yeetAndDelete) {
-                  population.dots.splice(index, 1);
-              }
-          }
+    this.divided = true;
+  }
+
+  contains(point) {
+    return (
+      point.x >= this.boundary.x &&
+      point.x < this.boundary.x + this.boundary.w &&
+      point.y >= this.boundary.y &&
+      point.y < this.boundary.y + this.boundary.h
+    );
+  }
+
+  intersects(r1, r2) {
+    return !(
+      r2.x > r1.x + r1.w ||
+      r2.x + r2.w < r1.x ||
+      r2.y > r1.y + r1.h ||
+      r2.y + r2.h < r1.y
+    );
+  }
+
+  containsPoint(rect, p) {
+    return (
+      p.x >= rect.x &&
+      p.x <= rect.x + rect.w &&
+      p.y >= rect.y &&
+      p.y <= rect.y + rect.h
+    );
+  }
+
+  insert(point) {
+    if (!this.contains(point)) return false;
+
+    if (this.points.length < this.capacity) {
+      this.points.push(point);
+      return true;
+    } else {
+      if (!this.divided) this.subdivide();
+      if (this.topLeft.insert(point)) return true;
+      if (this.topRight.insert(point)) return true;
+      if (this.bottomLeft.insert(point)) return true;
+      if (this.bottomRight.insert(point)) return true;
+    }
+  }
+
+  query(range, found) {
+    if (!found) found = [];
+
+    if (!this.intersects(range, this.boundary)) {
+      return found;
+    } else {
+      for (let p of this.points) {
+        if (this.containsPoint(range, p)) {
+          found.push(p);
+        }
       }
-
-      function drawParticle(x, y, color, radius) {
-          const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
-          gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
-          gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
-
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, 2 * Math.PI);
-          ctx.fill();
+      if (this.divided) {
+        this.topLeft.query(range, found);
+        this.topRight.query(range, found);
+        this.bottomLeft.query(range, found);
+        this.bottomRight.query(range, found);
       }
+    }
+    return found;
+  }
+}
 
-      function DrawGrid() {
-          DoTheThings();
+/* ==================== 6) MAIN LOGIC ==================== */
+let cvs = document.getElementById("gridCanvas");
+let ctx = cvs.getContext("2d");
+ctx.canvas.width = window.innerWidth;
+ctx.canvas.height = window.innerHeight;
 
-          // Clear the screen
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+window.addEventListener("resize", () => {
+  ctx.canvas.width = window.innerWidth;
+  ctx.canvas.height = window.innerHeight;
+});
 
-          // Draw each dot
-          for (let i = 0; i < population.dots.length; i++) {
-              let dot = population.dots[i];
-              let radius = dot.calculateRadius();
-              drawParticle(dot.x, dot.y, dot.color, radius);
-          }
+let population = {
+  data: {
+    mostChildren: 0,
+    mostChildrenIndex: 0,
+    previousMostChildrenIndex: 0
+  },
+  dots: []
+};
 
-          // Track fps
-          const now = performance.now();
-          while (times.length > 0 && times[0] <= now - 1000) {
-              times.shift();
-          }
-          times.push(now);
-          fps = times.length;
+const times = [];
+let fps = 0;
+let lastSaveTime = 0;
 
-          var networkDiv = document.getElementById("mynetwork");
-          if (networkDiv.style.display === "block") {
-              ctx.fillStyle = "white";
-              ctx.fillText("fps: " + fps + ", DotCount: " + population.dots.length, 20, 15);
-              drawBestDotHighlight(population.dots[population.data.mostChildrenIndex]);
-          }
+// Overcrowding constants
+const CROWD_RADIUS = 25;
+const CROWD_THRESHOLD = 8;
+const CROWD_PENALTY = 0.1;
 
-          // Request the next frame
-          requestAnimationFrame(DrawGrid);
+// Add initial
+function AddDots(n) {
+  for (let i = 0; i < n; i++) {
+    population.dots.push(new Dot());
+  }
+}
+
+function CopyDot(targetIndex, sourceDot) {
+  let target = population.dots[targetIndex];
+  target.brain.Copy(sourceDot.brain);
+  target.CopyColor(sourceDot);
+
+  // random near source
+  let r = Math.random() * 50;
+  let a = Math.random() * 6.28;
+  target.x = Math.floor(r * Math.cos(a) + sourceDot.x);
+  target.y = Math.floor(r * Math.sin(a) + sourceDot.y);
+
+  target.x = Math.max(0, Math.min(ctx.canvas.width, target.x));
+  target.y = Math.max(0, Math.min(ctx.canvas.height, target.y));
+
+  // mutate w/ pop scale
+  target.brain.Mutate(population.dots.length);
+
+  target.vector.x = 0;
+  target.vector.y = 0;
+  target.energy = 5;
+  target.children = 0;
+  target.consumed = false;
+  target.generation++;
+}
+
+function DoTheThings() {
+  // quadtree
+  const boundary = { x: 0, y: 0, w: ctx.canvas.width, h: ctx.canvas.height };
+  let qt = new Quadtree(boundary, 8);
+
+  for (let i = 0; i < population.dots.length; i++) {
+    const d = population.dots[i];
+    qt.insert({ x: d.x, y: d.y, dotRef: d });
+  }
+
+  population.data.mostChildren = 0;
+
+  for (let i = 0; i < population.dots.length; i++) {
+    const dot = population.dots[i];
+
+    // normal neighbor search
+    const range = {
+      x: dot.x - dot.nearbyDistance,
+      y: dot.y - dot.nearbyDistance,
+      w: dot.nearbyDistance * 2,
+      h: dot.nearbyDistance * 2
+    };
+    let neighbors = qt.query(range);
+
+    dot.CheckDots(neighbors);
+
+    // Overcrowding
+    const crowdRange = {
+      x: dot.x - CROWD_RADIUS,
+      y: dot.y - CROWD_RADIUS,
+      w: CROWD_RADIUS*2,
+      h: CROWD_RADIUS*2
+    };
+    let localNeighbors = qt.query(crowdRange);
+    if (localNeighbors.length > CROWD_THRESHOLD) {
+      const over = localNeighbors.length - CROWD_THRESHOLD;
+      dot.energy -= over * CROWD_PENALTY;
+    }
+
+    dot.DoMovement(ctx.canvas.width, ctx.canvas.height);
+
+    if (dot.children > population.data.mostChildren) {
+      population.data.mostChildrenIndex = i;
+      population.data.mostChildren = dot.children;
+    }
+  }
+
+  // best dot changed?
+  if (
+    population.data.mostChildrenIndex !==
+    population.data.previousMostChildrenIndex
+  ) {
+    population.data.previousMostChildrenIndex =
+      population.data.mostChildrenIndex;
+    if (performance.now() - lastSaveTime > 5000) {
+      population.dots[population.data.mostChildrenIndex].brain.Save();
+      lastSaveTime = performance.now();
+    }
+  }
+
+  // death checks
+  let toRemove = [];
+  for (let i = 0; i < population.dots.length; i++) {
+    if (population.dots[i].CheckDeath()) {
+      if (population.dots[i].children >= population.data.mostChildren) {
+        if (performance.now() - lastSaveTime > 5000) {
+          population.dots[i].brain.Save();
+          lastSaveTime = performance.now();
+        }
       }
-
-      AddDots(25);
-      for (let i = 0; i < 120; i++) {
-          times.push(performance.now());
+      // consumed => copy from predator
+      if (population.dots[i].consumed) {
+        CopyDot(i, population.dots[i].nearestPredator);
+      } else {
+        // random
+        let pick = Math.floor(Math.random() * population.dots.length);
+        CopyDot(i, population.dots[pick]);
+        toRemove.push(i);
       }
-      requestAnimationFrame(DrawGrid);
-    </script>
+    }
+  }
+
+  // population control
+  if (fps > 30) {
+    AddDots(1);
+  }
+  if (fps < 20 && population.dots.length > 100) {
+    for (let idx of toRemove) {
+      if (idx < population.dots.length) {
+        population.dots.splice(idx, 1);
+      }
+    }
+  }
+}
+
+function drawParticle(x, y, color, radius) {
+  ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2*Math.PI);
+  ctx.fill();
+}
+
+function highlightBestDot(dot) {
+  if (!dot) return;
+  const r = dot.calculateRadius() + 4;
+  const pulse = Math.sin(performance.now() / 200) * 0.5 + 0.5;
+
+  ctx.strokeStyle = `rgba(255,255,255,${0.3 + 0.7 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(dot.x, dot.y, r, 0, 2 * Math.PI);
+  ctx.stroke();
+
+  ctx.fillStyle = "white";
+  ctx.font = "12px Arial";
+  ctx.fillText(`Best: ${dot.children} kids`, dot.x + r + 5, dot.y);
+}
+
+function RenderFrame() {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  DoTheThings();
+
+  // draw all dots
+  for (let i = 0; i < population.dots.length; i++) {
+    const d = population.dots[i];
+    drawParticle(d.x, d.y, d.color, d.calculateRadius());
+  }
+
+  // track fps
+  const now = performance.now();
+  while (times.length > 0 && times[0] <= now - 1000) {
+    times.shift();
+  }
+  times.push(now);
+  fps = times.length;
+
+  const netDiv = document.getElementById("mynetwork");
+  if (netDiv.style.display === "block") {
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      "fps: " + fps + ", DotCount: " + population.dots.length,
+      20,
+      15
+    );
+    let bestDot = population.dots[population.data.mostChildrenIndex];
+    highlightBestDot(bestDot);
+  }
+
+  requestAnimationFrame(RenderFrame);
+}
+
+// toggle network diagram
+function toggleVis() {
+  const netDiv = document.getElementById("mynetwork");
+  if (netDiv.style.display === "none") {
+    netDiv.style.display = "block";
+    drawNetwork();
+  } else {
+    netDiv.style.display = "none";
+  }
+}
+
+/* ========== VIS NETWORK DIAGRAM ========== */
+function drawNetwork() {
+  let cached = JSON.parse(localStorage.getItem("reconnect"));
+  if (!cached) return;
+
+  let nodes = [];
+  let edges = [];
+  const inputCount = 12;
+  const outputCount = 2;
+  const total = cached.length;
+
+  for (let i = 0; i < total; i++) {
+    let groupLabel = "";
+    if (i < inputCount) groupLabel = "Input";
+    else if (i >= inputCount && i < total - outputCount) groupLabel = "Hidden";
+    else groupLabel = "Output";
+
+    const nlabel = cached[i].label || `Neuron ${i}`;
+    nodes.push({
+      id: i,
+      label: `${nlabel} (${groupLabel}) [${i}]`,
+      group: groupLabel,
+      font: { color: "white" }
+    });
+  }
+
+  // show only positive edges for clarity
+  for (let i = inputCount; i < total; i++) {
+    for (let c = 0; c < cached[i].connections.length; c++) {
+      const w = cached[i].connections[c][1];
+      if (w > 0) {
+        edges.push({
+          from: c,
+          to: i,
+          value: Math.abs(w),
+          arrows: "to"
+        });
+      }
+    }
+  }
+
+  const container = document.getElementById("mynetwork");
+  const data = { nodes, edges };
+  const options = {
+    nodes: { shape: "dot", size: 6 },
+    edges: { smooth: false },
+    physics: {
+      forceAtlas2Based: {
+        theta: 0.5,
+        gravitationalConstant: -150,
+        centralGravity: 0.03,
+        springConstant: 0.04,
+        springLength: 100,
+        damping: 5
+      },
+      maxVelocity: 1046,
+      solver: "forceAtlas2Based",
+      timestep: 0.25,
+      stabilization: { iterations: 0 }
+    }
+  };
+  new vis.Network(container, data, options);
+}
+
+/* ==================== START ==================== */
+AddDots(25);
+// prime the fps buffer
+for (let i = 0; i < 120; i++) {
+  times.push(performance.now());
+}
+requestAnimationFrame(RenderFrame);
+</script>
 </body>
 </html>
