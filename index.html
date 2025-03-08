@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Swarm Bots - Speed up mutation when Overpopulated</title>
+  <title>Swarm Bots - Damage Over Time & Edge Clamping</title>
   <style>
     body {
       background-color: #000000;
@@ -24,7 +24,7 @@
       border: 1px solid #000000;
     }
   </style>
-  <!-- vis-network (only required if you want the optional diagram) -->
+  <!-- vis-network if you want the optional diagram -->
   <script src="vis-network.min.js"></script>
 </head>
 <body onload="drawNetwork()">
@@ -109,11 +109,6 @@ class Brain {
     }
   }
 
-  /**
-   * Mutate:
-   *   - Increase chance to add hidden neuron if population is big
-   *   - Increase amplitude for older->newer hidden + pop scale
-   */
   Mutate(popSize) {
     // 1) compute pop scale
     const popScale = getPopulationMutationScale(popSize);
@@ -229,7 +224,7 @@ class Brain {
   }
 }
 
-/* ==================== 4) DOT CLASS ==================== */
+/* ==================== 4) DOT CLASS (Damage over Time & Edge Clamping) ==================== */
 class Dot {
   constructor() {
     this.x = Math.random() * window.innerWidth;
@@ -242,7 +237,7 @@ class Dot {
     this.generation = 0;
     this.consumed = false;
 
-    // separate prey/predator
+    // separate prey/predator for neural inputs
     this.nearestPrey = null;
     this.nearestPredator = null;
 
@@ -277,6 +272,9 @@ class Dot {
     return Math.max(minSize, Math.min(maxSize, minSize + logE * scale));
   }
 
+  /**
+   * Fills nearestPrey and nearestPredator based on neighbor energies
+   */
   CheckDots(neighbors) {
     let preyDist = Infinity;
     let predDist = Infinity;
@@ -292,13 +290,11 @@ class Dot {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (other.energy < this.energy) {
-        // potential prey
         if (dist < preyDist) {
           preyDist = dist;
           this.nearestPrey = other;
         }
       } else if (other.energy > this.energy) {
-        // potential predator
         if (dist < predDist) {
           predDist = dist;
           this.nearestPredator = other;
@@ -307,36 +303,61 @@ class Dot {
     }
   }
 
-  CheckDeath() {
-    return this.Consumed() || this.energy < 0 || this.WallDeath();
-  }
+  /**
+   * Instead of immediate consumption, each Dot checks collisions with neighbors
+   * and deals/takes damage. If one runs out of energy, that Dot is "consumed."
+   */
+  HandleCombat(neighbors) {
+    const myRadius = this.calculateRadius();
 
-  Consumed() {
-    // predator on top => I'm consumed
-    if (this.nearestPredator) {
-      const dx = this.x - this.nearestPredator.x;
-      const dy = this.y - this.nearestPredator.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 1) {
-        if (this.energy < this.nearestPredator.energy) {
-          this.energy = -1;
+    for (let entry of neighbors) {
+      const other = entry.dotRef;
+      if (other === this) continue;
+
+      const distX = this.x - other.x;
+      const distY = this.y - other.y;
+      const dist = Math.sqrt(distX * distX + distY * distY);
+
+      // If we overlap, apply damage
+      const otherRadius = other.calculateRadius();
+      if (dist < myRadius + otherRadius) {
+        // We'll do a small base damage
+        const baseDamage = 0.05;
+
+        // The bigger one hits the smaller one for some damage
+        if (this.energy > other.energy) {
+          // smaller dot loses more energy
+          other.energy -= baseDamage;
+          // bigger dot might lose a little
+          this.energy -= 0.01;
+        } else if (other.energy > this.energy) {
+          this.energy -= baseDamage;
+          other.energy -= 0.01;
+        } else {
+          // If same energy, both lose a little
+          this.energy -= baseDamage * 0.5;
+          other.energy -= baseDamage * 0.5;
+        }
+
+        // If other dips below zero => consumed
+        if (other.energy < 0) {
+          // we gain some energy from it
+          this.energy += Math.max(0, other.energy + 2);
+          other.consumed = true;
+        }
+        // If this dips below zero => I'm consumed
+        if (this.energy < 0) {
+          other.energy += Math.max(0, this.energy + 2);
           this.consumed = true;
-          return true;
         }
       }
     }
-    // I'm on top of smaller => I eat them
-    if (this.nearestPrey) {
-      const dx = this.x - this.nearestPrey.x;
-      const dy = this.y - this.nearestPrey.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 1) {
-        this.energy += this.nearestPrey.energy;
-        this.children++;
-        if (this.energy > 100) this.energy = 100;
-      }
-    }
-    return false;
+  }
+
+  // Return true if we should remove the dot
+  CheckDeath() {
+    // we die if energy < 0
+    return this.energy < 0;
   }
 
   CopyColor(dotToCopy) {
@@ -352,17 +373,41 @@ class Dot {
       );
     } while (this.color.r + this.color.g + this.color.b < 127);
   }
+
   boundValue(val) {
     return Math.max(0, Math.min(255, val));
   }
 
-  WallDeath() {
-    return (
-      this.x > ctx.canvas.width ||
-      this.x < 1 ||
-      this.y > ctx.canvas.height ||
-      this.y < 1
-    );
+  /**
+   * Instead of wall death, clamp at edge and take damage if we try to go beyond
+   */
+  ClampAtEdge(cWidth, cHeight) {
+    const damageOnCollision = 0.05; // how much we lose if we push the wall
+
+    // Check left
+    if (this.x < 0) {
+      this.x = 0;
+      this.energy -= damageOnCollision;
+      this.vector.x = 0; // stop
+    }
+    // Check right
+    if (this.x > cWidth) {
+      this.x = cWidth;
+      this.energy -= damageOnCollision;
+      this.vector.x = 0; // stop
+    }
+    // Check top
+    if (this.y < 0) {
+      this.y = 0;
+      this.energy -= damageOnCollision;
+      this.vector.y = 0; // stop
+    }
+    // Check bottom
+    if (this.y > cHeight) {
+      this.y = cHeight;
+      this.energy -= damageOnCollision;
+      this.vector.y = 0; // stop
+    }
   }
 
   DoMovement(cWidth, cHeight) {
@@ -380,7 +425,10 @@ class Dot {
     this.x += this.vector.x;
     this.y += this.vector.y;
 
-    // energy drain
+    // clamp at edge and take some damage if forced against boundary
+    this.ClampAtEdge(cWidth, cHeight);
+
+    // energy drain from movement
     const motionCost = Math.sqrt(this.vector.x**2 + this.vector.y**2) / 1000;
     this.energy -= this.tickRate + motionCost;
   }
@@ -565,7 +613,7 @@ function CopyDot(targetIndex, sourceDot) {
 }
 
 function DoTheThings() {
-  // quadtree
+  // build quadtree
   const boundary = { x: 0, y: 0, w: ctx.canvas.width, h: ctx.canvas.height };
   let qt = new Quadtree(boundary, 8);
 
@@ -579,7 +627,7 @@ function DoTheThings() {
   for (let i = 0; i < population.dots.length; i++) {
     const dot = population.dots[i];
 
-    // normal neighbor search
+    // normal neighbor search to fill nearestPrey/nearestPredator
     const range = {
       x: dot.x - dot.nearbyDistance,
       y: dot.y - dot.nearbyDistance,
@@ -588,14 +636,15 @@ function DoTheThings() {
     };
     let neighbors = qt.query(range);
 
+    // 1) find nearest prey/predator
     dot.CheckDots(neighbors);
 
-    // Overcrowding
+    // Overcrowding penalty
     const crowdRange = {
       x: dot.x - CROWD_RADIUS,
       y: dot.y - CROWD_RADIUS,
-      w: CROWD_RADIUS*2,
-      h: CROWD_RADIUS*2
+      w: CROWD_RADIUS * 2,
+      h: CROWD_RADIUS * 2
     };
     let localNeighbors = qt.query(crowdRange);
     if (localNeighbors.length > CROWD_THRESHOLD) {
@@ -603,15 +652,19 @@ function DoTheThings() {
       dot.energy -= over * CROWD_PENALTY;
     }
 
+    // 2) apply damage if overlapping
+    dot.HandleCombat(neighbors);
+
     dot.DoMovement(ctx.canvas.width, ctx.canvas.height);
 
+    // track best
     if (dot.children > population.data.mostChildren) {
       population.data.mostChildrenIndex = i;
       population.data.mostChildren = dot.children;
     }
   }
 
-  // best dot changed?
+  // see if best dot changed
   if (
     population.data.mostChildrenIndex !==
     population.data.previousMostChildrenIndex
@@ -634,11 +687,11 @@ function DoTheThings() {
           lastSaveTime = performance.now();
         }
       }
-      // consumed => copy from predator
-      if (population.dots[i].consumed) {
+      if (population.dots[i].consumed && population.dots[i].nearestPredator) {
+        // if consumed => copy from predator
         CopyDot(i, population.dots[i].nearestPredator);
       } else {
-        // random
+        // else copy from random
         let pick = Math.floor(Math.random() * population.dots.length);
         CopyDot(i, population.dots[pick]);
         toRemove.push(i);
