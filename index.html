@@ -365,12 +365,12 @@ class Dot {
     const moveUp        = this.brain.neurons[n - 10].value;
 
     // 1) Sleep logic
-    if (sleepToggle > 0 && this.energy < 1) {
-      // If "sleepToggle" > 0, Dot is sleeping: no movement
-      // but let's do a small energy regeneration
-      this.energy += 0.000005;  // arbitrary regeneration rate
-      return;               // skip movement entirely
-    }
+    // if (sleepToggle > 0 && this.energy < 1) {
+    //   // If "sleepToggle" > 0, Dot is sleeping: no movement
+    //   // but let's do a small energy regeneration
+    //   //this.energy += 0.000005;  // arbitrary regeneration rate
+    //   return;               // skip movement entirely
+    // }
 
     // 2) Blend directions
     const dirX =
