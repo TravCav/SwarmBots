@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Swarm Bots - Speed up mutation when Overpopulated</title>
+  <title>Swarm Bots - Additional Inputs & Outputs</title>
   <style>
     body {
       background-color: #000000;
@@ -33,24 +33,13 @@
 
 <script>
 /* ==================== 1) POPULATION-SCALED MUTATION HELPER ==================== */
-/**
- * Returns a multiplier for mutation based on population size.
- *
- * Example:
- *   0..200 dots   => scale from 1.0 up to 2.0
- *   200..500 dots => scale from 2.0 up to 3.0
- *   500+ dots     => clamp at 3.0
- */
 function getPopulationMutationScale(popSize) {
   if (popSize < 200) {
-    // From 1.0..2.0 as pop goes 0..200
     return 1.0 + (popSize / 200);
   } else if (popSize < 500) {
-    // From 2.0..3.0 as pop goes 200..500
-    const fraction = (popSize - 200) / 300; // 0..1
-    return 2.0 + (1.0 * fraction);         // => 2..3
+    const fraction = (popSize - 200) / 300;
+    return 2.0 + fraction;  // => up to 3.0
   } else {
-    // 500+ => Overpopulation => scale 3.0
     return 3.0;
   }
 }
@@ -70,29 +59,39 @@ class neuron {
   }
 }
 
-/* ==================== 3) BRAIN CLASS (Pop-Scaled Mutation) ==================== */
+/* ==================== 3) BRAIN CLASS (10 outputs) ==================== */
 class Brain {
   constructor() {
-    this.inputCount = 12;
-    this.hiddenCount = 1;  // Start with 1 hidden
-    this.outputCount = 2;  // 2 outputs: moveX, moveY
+    // CHANGED: we had 12 inputs, now we add 5 new:
+    //  - 1 for localDensity
+    //  - 4 for relative velocities
+    this.inputCount = 17;          // total input neurons
+    this.hiddenCount = 1;          // you can change as desired
+    this.outputCount = 10;         // 8 directions + 1 speed + 1 sleep
 
     const total = this.inputCount + this.hiddenCount + this.outputCount;
     this.neurons = new Array(total);
 
-    // Initialize
     for (let i = 0; i < total; i++) {
       this.neurons[i] = new neuron(total);
     }
 
-    // Label outputs
+    // Label last 10 neurons = 8 directions + speedMod + sleepToggle
     const last = total - 1;
-    this.neurons[last].label = "moveY";
-    this.neurons[last - 1].label = "moveX";
+    this.neurons[last].label     = "sleepToggle";     // index: total - 1
+    this.neurons[last - 1].label = "speedMod";        // total - 2
+
+    this.neurons[last - 2].label = "moveDownRight";   // total - 3
+    this.neurons[last - 3].label = "moveDownLeft";    // total - 4
+    this.neurons[last - 4].label = "moveUpRight";     // total - 5
+    this.neurons[last - 5].label = "moveUpLeft";      // total - 6
+    this.neurons[last - 6].label = "moveRight";       // total - 7
+    this.neurons[last - 7].label = "moveLeft";        // total - 8
+    this.neurons[last - 8].label = "moveDown";        // total - 9
+    this.neurons[last - 9].label = "moveUp";          // total - 10
   }
 
   Copy(otherBrain) {
-    // If smaller, expand ourselves
     while (this.neurons.length < otherBrain.neurons.length) {
       this.AddHiddenNeuron();
     }
@@ -109,29 +108,21 @@ class Brain {
     }
   }
 
-  /**
-   * Mutate:
-   *   - NO random addition of hidden neurons anymore
-   *   - Increase amplitude for older->newer hidden + pop scale
-   */
   Mutate(popSize) {
-
-    // --- Removed the random chance of adding a neuron here ---
-
-    // 2) pick random hidden/output neuron
+    // skip inputs, pick random hidden or output
     const neuronIndex = Math.floor(
       Math.random() * (this.neurons.length - this.inputCount)
     ) + this.inputCount;
 
-    // 3) pick random connection
+    // random connection
     const connectionIndex = Math.floor(
       Math.random() * this.neurons[neuronIndex].connections.length
     );
 
-    const delta = (Math.random() * 2 - 1);
+    const delta = Math.random() * 2 - 1;
     this.neurons[neuronIndex].connections[connectionIndex][1] += delta;
 
-    // 7) rare chance to reset
+    // rare chance to reset
     if (Math.random() < 1e-7) {
       this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
     }
@@ -156,7 +147,7 @@ class Brain {
       newNeurons[i] = newN;
     }
 
-    // new hidden
+    // create new hidden
     const hiddenN = new neuron(newLen);
     hiddenN.label = `Hidden ${this.hiddenCount + 1}`;
     newNeurons[oldLen] = hiddenN;
@@ -184,7 +175,6 @@ class Brain {
   Restore() {
     const saved = JSON.parse(localStorage.getItem("reconnect"));
     if (!saved) return;
-
     if (this.neurons.length === saved.length) {
       for (let i = 0; i < this.neurons.length; i++) {
         if (
@@ -218,31 +208,42 @@ class Dot {
     this.generation = 0;
     this.consumed = false;
 
-    // separate prey/predator
-    this.nearestPrey = null;
-    this.nearestPredator = null;
+    // We'll store localDensity each frame
+    this.localDensity = 0;  // NEW INPUT
+    // We'll see if we have nearestPrey & Predator velocities in the next steps
 
     this.nearbyDistance = 50;
+    this.nearestPrey = null;
+    this.nearestPredator = null;
 
     // create brain
     this.brain = new Brain();
     this.brain.Restore();
-    // mutate with pop-based scale
     this.brain.Mutate(population.dots.length);
 
-    // Label the 12 inputs once
-    this.brain.neurons[0].label = "Energy";
-    this.brain.neurons[1].label = "Velocity X";
-    this.brain.neurons[2].label = "Velocity Y";
-    this.brain.neurons[3].label = "Dist Left";
-    this.brain.neurons[4].label = "Dist Right";
-    this.brain.neurons[5].label = "Dist Top";
-    this.brain.neurons[6].label = "Dist Bottom";
-    this.brain.neurons[7].label = "dx Prey";
-    this.brain.neurons[8].label = "dy Prey";
-    this.brain.neurons[9].label = "dx Predator";
+    // Label the 17 inputs:
+    //  The original 12:
+    this.brain.neurons[0].label  = "Energy";
+    this.brain.neurons[1].label  = "Velocity X";
+    this.brain.neurons[2].label  = "Velocity Y";
+    this.brain.neurons[3].label  = "Dist Left";
+    this.brain.neurons[4].label  = "Dist Right";
+    this.brain.neurons[5].label  = "Dist Top";
+    this.brain.neurons[6].label  = "Dist Bottom";
+    this.brain.neurons[7].label  = "dx Prey";
+    this.brain.neurons[8].label  = "dy Prey";
+    this.brain.neurons[9].label  = "dx Predator";
     this.brain.neurons[10].label = "dy Predator";
     this.brain.neurons[11].label = "Predator Energy Diff";
+
+    // NEW INPUTS:
+    this.brain.neurons[12].label = "Local Density";
+    // Relative velocity for Prey
+    this.brain.neurons[13].label = "relVelPreyX";
+    this.brain.neurons[14].label = "relVelPreyY";
+    // Relative velocity for Predator
+    this.brain.neurons[15].label = "relVelPredX";
+    this.brain.neurons[16].label = "relVelPredY";
   }
 
   calculateRadius() {
@@ -262,7 +263,6 @@ class Dot {
     for (let entry of neighbors) {
       const other = entry.dotRef;
       if (other === this) continue;
-
       const dx = this.x - other.x;
       const dy = this.y - other.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -305,7 +305,7 @@ class Dot {
     if (this.nearestPrey) {
       const dx = this.x - this.nearestPrey.x;
       const dy = this.y - this.nearestPrey.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 1) {
         this.energy += this.nearestPrey.energy;
         this.children++;
@@ -341,18 +341,63 @@ class Dot {
     );
   }
 
+  // ---------------------------
+  // Movement using 10 outputs:
+  // 8 directions, speedMod, sleepToggle
+  // ---------------------------
   DoMovement(cWidth, cHeight) {
     this.GetInputs(cWidth, cHeight);
     this.brain.Processneurons();
 
-    // last 2 => moveX, moveY
-    const moveX = this.brain.neurons[this.brain.neurons.length - 2].value;
-    const moveY = this.brain.neurons[this.brain.neurons.length - 1].value;
+    // indexes for last 10 outputs
+    const n = this.brain.neurons.length;
+    // from the end:
+    const sleepToggle = this.brain.neurons[n - 1].value;    // moveDownRight is n-2, etc. 
+    const speedMod    = this.brain.neurons[n - 2].value;
 
-    const speedFactor = 0.1;
-    this.vector.x += moveX * speedFactor;
-    this.vector.y += moveY * speedFactor;
+    const moveDownRight = this.brain.neurons[n - 3].value;
+    const moveDownLeft  = this.brain.neurons[n - 4].value;
+    const moveUpRight   = this.brain.neurons[n - 5].value;
+    const moveUpLeft    = this.brain.neurons[n - 6].value;
+    const moveRight     = this.brain.neurons[n - 7].value;
+    const moveLeft      = this.brain.neurons[n - 8].value;
+    const moveDown      = this.brain.neurons[n - 9].value;
+    const moveUp        = this.brain.neurons[n - 10].value;
 
+    // 1) Sleep logic
+    if (sleepToggle > 0 && this.energy < 1) {
+      // If "sleepToggle" > 0, Dot is sleeping: no movement
+      // but let's do a small energy regeneration
+      this.energy += 0.000005;  // arbitrary regeneration rate
+      return;               // skip movement entirely
+    }
+
+    // 2) Blend directions
+    const dirX =
+      (moveRight     *  1) +
+      (moveLeft      * -1) +
+      (moveUpLeft    * -1) +
+      (moveUpRight   *  1) +
+      (moveDownLeft  * -1) +
+      (moveDownRight *  1);
+
+    const dirY =
+      (moveDown      *  1) +
+      (moveUp        * -1) +
+      (moveUpLeft    * -1) +
+      (moveUpRight   * -1) +
+      (moveDownLeft  *  1) +
+      (moveDownRight *  1);
+
+    // 3) Speed Modulation
+    // speedMod is [-1..1], let's map that to [0..2], or clamp
+    const speedFactor = Math.max(0, Math.min(2, (speedMod + 1)));
+
+    // update velocity
+    this.vector.x += dirX * 0.1 * speedFactor;
+    this.vector.y += dirY * 0.1 * speedFactor;
+
+    // apply movement
     this.x += this.vector.x;
     this.y += this.vector.y;
 
@@ -361,16 +406,17 @@ class Dot {
     this.energy -= this.tickRate + motionCost;
   }
 
+  // NEW: GetInputs now includes localDensity & relative velocities
   GetInputs(cWidth, cHeight) {
-    this.brain.neurons[0].value = this.energy;
-    this.brain.neurons[1].value = this.vector.x;
-    this.brain.neurons[2].value = this.vector.y;
-    this.brain.neurons[3].value = this.x;               // Dist Left
-    this.brain.neurons[4].value = cWidth - this.x;      // Dist Right
-    this.brain.neurons[5].value = this.y;               // Dist Top
-    this.brain.neurons[6].value = cHeight - this.y;     // Dist Bottom
+    // Original 12:
+    this.brain.neurons[0].value  = this.energy;
+    this.brain.neurons[1].value  = this.vector.x;
+    this.brain.neurons[2].value  = this.vector.y;
+    this.brain.neurons[3].value  = this.x;               
+    this.brain.neurons[4].value  = cWidth - this.x;      
+    this.brain.neurons[5].value  = this.y;               
+    this.brain.neurons[6].value  = cHeight - this.y;     
 
-    // prey coords
     if (this.nearestPrey) {
       this.brain.neurons[7].value = this.nearestPrey.x - this.x;
       this.brain.neurons[8].value = this.nearestPrey.y - this.y;
@@ -379,15 +425,35 @@ class Dot {
       this.brain.neurons[8].value = 0;
     }
 
-    // predator coords
     if (this.nearestPredator) {
-      this.brain.neurons[9].value = this.nearestPredator.x - this.x;
+      this.brain.neurons[9].value  = this.nearestPredator.x - this.x;
       this.brain.neurons[10].value = this.nearestPredator.y - this.y;
       this.brain.neurons[11].value = this.nearestPredator.energy - this.energy;
     } else {
-      this.brain.neurons[9].value = 0;
+      this.brain.neurons[9].value  = 0;
       this.brain.neurons[10].value = 0;
       this.brain.neurons[11].value = 0;
+    }
+
+    // NEW INPUT #1: localDensity
+    this.brain.neurons[12].value = this.localDensity;
+
+    // NEW INPUTS #2-5: relative velocity
+    //   Prey velocity minus my velocity
+    if (this.nearestPrey) {
+      this.brain.neurons[13].value = this.nearestPrey.vector.x - this.vector.x;
+      this.brain.neurons[14].value = this.nearestPrey.vector.y - this.vector.y;
+    } else {
+      this.brain.neurons[13].value = 0;
+      this.brain.neurons[14].value = 0;
+    }
+    //   Predator velocity minus my velocity
+    if (this.nearestPredator) {
+      this.brain.neurons[15].value = this.nearestPredator.vector.x - this.vector.x;
+      this.brain.neurons[16].value = this.nearestPredator.vector.y - this.vector.y;
+    } else {
+      this.brain.neurons[15].value = 0;
+      this.brain.neurons[16].value = 0;
     }
   }
 }
@@ -395,7 +461,7 @@ class Dot {
 /* ==================== 5) QUADTREE ==================== */
 class Quadtree {
   constructor(boundary, capacity) {
-    this.boundary = boundary; // {x,y,w,h}
+    this.boundary = boundary;
     this.capacity = capacity;
     this.points = [];
     this.divided = false;
@@ -459,7 +525,6 @@ class Quadtree {
 
   query(range, found) {
     if (!found) found = [];
-
     if (!this.intersects(range, this.boundary)) {
       return found;
     } else {
@@ -508,7 +573,6 @@ const CROWD_RADIUS = 25;
 const CROWD_THRESHOLD = 8;
 const CROWD_PENALTY = 0.1;
 
-// Add initial
 function AddDots(n) {
   for (let i = 0; i < n; i++) {
     population.dots.push(new Dot());
@@ -524,13 +588,9 @@ function AddDots(n) {
 function CopyDot(targetIndex, sourceDot, wasConsumed = false) {
   let target = population.dots[targetIndex];
 
-  // Copy entire Brain structure
   target.brain.Copy(sourceDot.brain);
-
-  // Copy color (slight random variation)
   target.CopyColor(sourceDot);
 
-  // Random near source
   let r = Math.random() * 50;
   let a = Math.random() * 6.28;
   target.x = Math.floor(r * Math.cos(a) + sourceDot.x);
@@ -538,7 +598,6 @@ function CopyDot(targetIndex, sourceDot, wasConsumed = false) {
   target.x = Math.max(0, Math.min(ctx.canvas.width, target.x));
   target.y = Math.max(0, Math.min(ctx.canvas.height, target.y));
 
-  // Reset some properties
   target.vector.x = 0;
   target.vector.y = 0;
   target.energy = 5;
@@ -546,17 +605,16 @@ function CopyDot(targetIndex, sourceDot, wasConsumed = false) {
   target.consumed = false;
   target.generation++;
 
-  // If Dot was consumed, add 1 hidden neuron
+  // optional: add hidden neuron if consumed
   if (wasConsumed && population.dots.length > 1000) {
     target.brain.AddHiddenNeuron();
   }
 
-  // Now mutate the final structure
+  // mutate new dot
   target.brain.Mutate(population.dots.length);
 }
 
 function DoTheThings() {
-  // quadtree
   const boundary = { x: 0, y: 0, w: ctx.canvas.width, h: ctx.canvas.height };
   let qt = new Quadtree(boundary, 8);
 
@@ -570,7 +628,7 @@ function DoTheThings() {
   for (let i = 0; i < population.dots.length; i++) {
     const dot = population.dots[i];
 
-    // normal neighbor search
+    // normal neighbor search for nearest prey/pred
     const range = {
       x: dot.x - dot.nearbyDistance,
       y: dot.y - dot.nearbyDistance,
@@ -578,10 +636,9 @@ function DoTheThings() {
       h: dot.nearbyDistance * 2
     };
     let neighbors = qt.query(range);
-
     dot.CheckDots(neighbors);
 
-    // Overcrowding
+    // Overcrowding => also track localDensity for each Dot
     const crowdRange = {
       x: dot.x - CROWD_RADIUS,
       y: dot.y - CROWD_RADIUS,
@@ -589,11 +646,13 @@ function DoTheThings() {
       h: CROWD_RADIUS * 2
     };
     let localNeighbors = qt.query(crowdRange);
-    if (localNeighbors.length > CROWD_THRESHOLD) {
-      const over = localNeighbors.length - CROWD_THRESHOLD;
+    dot.localDensity = localNeighbors.length;  // NEW: store for input
+    if (dot.localDensity > CROWD_THRESHOLD) {
+      const over = dot.localDensity - CROWD_THRESHOLD;
       dot.energy -= over * CROWD_PENALTY;
     }
 
+    // movement
     dot.DoMovement(ctx.canvas.width, ctx.canvas.height);
 
     if (dot.children > population.data.mostChildren) {
@@ -619,6 +678,7 @@ function DoTheThings() {
   let toRemove = [];
   for (let i = 0; i < population.dots.length; i++) {
     if (population.dots[i].CheckDeath()) {
+      // if it was a top parent
       if (population.dots[i].children >= population.data.mostChildren) {
         if (performance.now() - lastSaveTime > 5000) {
           population.dots[i].brain.Save();
@@ -627,7 +687,6 @@ function DoTheThings() {
       }
       // consumed => copy from predator
       if (population.dots[i].consumed) {
-        // Pass wasConsumed = true
         CopyDot(i, population.dots[i].nearestPredator, true);
       } else {
         // random pick replacement
@@ -638,7 +697,7 @@ function DoTheThings() {
     }
   }
 
-  // population control (example logic)
+  // population control example
   if (fps > 30) {
     AddDots(1);
   }
@@ -726,8 +785,8 @@ function drawNetwork() {
 
   let nodes = [];
   let edges = [];
-  const inputCount = 12;
-  const outputCount = 2;
+  const inputCount = 17;   // updated for new inputs
+  const outputCount = 10;  // 8 directions + speedMod + sleepToggle
   const total = cached.length;
 
   for (let i = 0; i < total; i++) {
@@ -785,7 +844,7 @@ function drawNetwork() {
 
 /* ==================== START ==================== */
 AddDots(25);
-// prime the fps buffer
+// Prime the fps buffer
 for (let i = 0; i < 120; i++) {
   times.push(performance.now());
 }
