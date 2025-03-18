@@ -111,51 +111,27 @@ class Brain {
 
   /**
    * Mutate:
-   *   - Increase chance to add hidden neuron if population is big
+   *   - NO random addition of hidden neurons anymore
    *   - Increase amplitude for older->newer hidden + pop scale
    */
   Mutate(popSize) {
-    // 1) compute pop scale
-    const popScale = getPopulationMutationScale(popSize);
 
-    // 2) base add-neuron prob is 1e-6, scaled by pop
-    const baseProb = 1e-6;
-    const actualAddNeuronProb = baseProb * popScale;
-    if (Math.random() < actualAddNeuronProb) {
-      this.AddHiddenNeuron();
-    }
+    // --- Removed the random chance of adding a neuron here ---
 
-    // 3) pick random hidden/output neuron
+    // 2) pick random hidden/output neuron
     const neuronIndex = Math.floor(
       Math.random() * (this.neurons.length - this.inputCount)
     ) + this.inputCount;
 
-    // 4) pick random connection
+    // 3) pick random connection
     const connectionIndex = Math.floor(
       Math.random() * this.neurons[neuronIndex].connections.length
     );
 
-    // 5) older->newer hidden scaling
-    let amplitude = 1.0; // default
-    const hiddenStart = this.inputCount;
-    const hiddenEnd = this.neurons.length - this.outputCount;
-    if (neuronIndex >= hiddenStart && neuronIndex < hiddenEnd) {
-      const hiddenIndex = neuronIndex - hiddenStart;
-      const hiddenSpan = Math.max(1, hiddenEnd - hiddenStart - 1);
-      const fraction = hiddenIndex / hiddenSpan;
-      // older => fraction=0 => amplitude=0.5
-      // newest => fraction=1 => amplitude=1.0
-      amplitude = 0.5 + fraction * 0.5;
-    }
-
-    // 6) multiply amplitude by popScale
-    amplitude *= popScale;
-
-    // 7) random weight change
-    const delta = (Math.random() * 2 - 1) * amplitude;
+    const delta = (Math.random() * 2 - 1);
     this.neurons[neuronIndex].connections[connectionIndex][1] += delta;
 
-    // 8) rare chance to reset
+    // 7) rare chance to reset
     if (Math.random() < 1e-7) {
       this.neurons[neuronIndex].connections[connectionIndex][1] = 0;
     }
@@ -316,7 +292,7 @@ class Dot {
     if (this.nearestPredator) {
       const dx = this.x - this.nearestPredator.x;
       const dy = this.y - this.nearestPredator.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 1) {
         if (this.energy < this.nearestPredator.energy) {
           this.energy = -1;
@@ -389,10 +365,10 @@ class Dot {
     this.brain.neurons[0].value = this.energy;
     this.brain.neurons[1].value = this.vector.x;
     this.brain.neurons[2].value = this.vector.y;
-    this.brain.neurons[3].value = this.x;              
-    this.brain.neurons[4].value = cWidth - this.x;     
-    this.brain.neurons[5].value = this.y;              
-    this.brain.neurons[6].value = cHeight - this.y;    
+    this.brain.neurons[3].value = this.x;               // Dist Left
+    this.brain.neurons[4].value = cWidth - this.x;      // Dist Right
+    this.brain.neurons[5].value = this.y;               // Dist Top
+    this.brain.neurons[6].value = cHeight - this.y;     // Dist Bottom
 
     // prey coords
     if (this.nearestPrey) {
@@ -539,29 +515,44 @@ function AddDots(n) {
   }
 }
 
-function CopyDot(targetIndex, sourceDot) {
+/**
+ * Copy brain/color and position from sourceDot into targetIndex.
+ * @param {number} targetIndex
+ * @param {Dot} sourceDot
+ * @param {boolean} wasConsumed
+ */
+function CopyDot(targetIndex, sourceDot, wasConsumed = false) {
   let target = population.dots[targetIndex];
+
+  // Copy entire Brain structure
   target.brain.Copy(sourceDot.brain);
+
+  // Copy color (slight random variation)
   target.CopyColor(sourceDot);
 
-  // random near source
+  // Random near source
   let r = Math.random() * 50;
   let a = Math.random() * 6.28;
   target.x = Math.floor(r * Math.cos(a) + sourceDot.x);
   target.y = Math.floor(r * Math.sin(a) + sourceDot.y);
-
   target.x = Math.max(0, Math.min(ctx.canvas.width, target.x));
   target.y = Math.max(0, Math.min(ctx.canvas.height, target.y));
 
-  // mutate w/ pop scale
-  target.brain.Mutate(population.dots.length);
-
+  // Reset some properties
   target.vector.x = 0;
   target.vector.y = 0;
   target.energy = 5;
   target.children = 0;
   target.consumed = false;
   target.generation++;
+
+  // If Dot was consumed, add 1 hidden neuron
+  if (wasConsumed && population.dots.length > 1000) {
+    target.brain.AddHiddenNeuron();
+  }
+
+  // Now mutate the final structure
+  target.brain.Mutate(population.dots.length);
 }
 
 function DoTheThings() {
@@ -594,8 +585,8 @@ function DoTheThings() {
     const crowdRange = {
       x: dot.x - CROWD_RADIUS,
       y: dot.y - CROWD_RADIUS,
-      w: CROWD_RADIUS*2,
-      h: CROWD_RADIUS*2
+      w: CROWD_RADIUS * 2,
+      h: CROWD_RADIUS * 2
     };
     let localNeighbors = qt.query(crowdRange);
     if (localNeighbors.length > CROWD_THRESHOLD) {
@@ -636,17 +627,18 @@ function DoTheThings() {
       }
       // consumed => copy from predator
       if (population.dots[i].consumed) {
-        CopyDot(i, population.dots[i].nearestPredator);
+        // Pass wasConsumed = true
+        CopyDot(i, population.dots[i].nearestPredator, true);
       } else {
-        // random
+        // random pick replacement
         let pick = Math.floor(Math.random() * population.dots.length);
-        CopyDot(i, population.dots[pick]);
+        CopyDot(i, population.dots[pick], false);
         toRemove.push(i);
       }
     }
   }
 
-  // population control
+  // population control (example logic)
   if (fps > 30) {
     AddDots(1);
   }
