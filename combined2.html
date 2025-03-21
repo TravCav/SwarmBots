@@ -32,17 +32,7 @@
 <div id="mynetwork" style="display:none"></div>
 
 <script>
-/* ==================== 1) POPULATION-SCALED MUTATION HELPER ==================== */
-function getPopulationMutationScale(popSize) {
-  if (popSize < 200) {
-    return 1.0 + (popSize / 200);
-  } else if (popSize < 500) {
-    const fraction = (popSize - 200) / 300;
-    return 2.0 + fraction;  // => up to 3.0
-  } else {
-    return 3.0;
-  }
-}
+
 
 /* ==================== 2) NEURON CLASS ==================== */
 class neuron {
@@ -388,7 +378,7 @@ class Dot {
       (moveDownRight *  1);
 
     // small speed factor
-    const speedFactor = 0.1;
+    const speedFactor = 0.01;
     this.vector.x += dirX * speedFactor;
     this.vector.y += dirY * speedFactor;
 
@@ -633,7 +623,7 @@ function CopyDot(targetIndex, sourceDot, wasConsumed = false) {
   target.generation++;
 
   // optional: add hidden neuron if consumed
-  if (wasConsumed && population.dots.length > 500) {
+  if (wasConsumed && population.dots.length > 800) {
     target.brain.AddHiddenNeuron();
   }
 
